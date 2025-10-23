@@ -1,0 +1,46 @@
+# Node & Next.js artifacts
+node_modules/
+.next/
+out/
+dist/
+build/
+pnpm-lock.yaml.*
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Env & configuration
+.env
+.env.*
+.vercel/
+
+# TypeScript
+*.tsbuildinfo
+
+# Coverage & reports
+coverage/
+.nyc_output/
+
+# Editor & OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Go build artifacts
+*.exe
+*.test
+*.out
+*.exe~
+*.swp
+*.swo
+*.a
+*.o
+bin/
+
+# Misc
+tmp/
+temp/
