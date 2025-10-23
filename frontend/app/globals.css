@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 240 5% 96%;
+  --foreground: 240 5% 10%;
+  --muted: 240 5% 90%;
+  --muted-foreground: 240 5% 40%;
+  --border: 240 5% 88%;
+  --input: 240 5% 78%;
+  --ring: 244 75% 58%;
+  --primary: 244 75% 58%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 200 98% 39%;
+  --secondary-foreground: 210 40% 98%;
+  --accent: 46 100% 64%;
+  --accent-foreground: 240 5% 20%;
+  --chart-1: 210 100% 50%;
+  --chart-2: 160 84% 39%;
+  --chart-3: 28 87% 62%;
+  --chart-4: 280 78% 60%;
+  --chart-5: 340 82% 52%;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: 240 6% 8%;
+  --foreground: 210 40% 94%;
+  --muted: 240 18% 15%;
+  --muted-foreground: 240 12% 65%;
+  --border: 240 10% 25%;
+  --input: 240 10% 25%;
+  --ring: 244 75% 55%;
+  --primary: 244 78% 60%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 199 89% 48%;
+  --secondary-foreground: 210 55% 12%;
+  --accent: 46 95% 60%;
+  --accent-foreground: 210 40% 12%;
+  --chart-1: 210 100% 66%;
+  --chart-2: 160 76% 45%;
+  --chart-3: 28 94% 62%;
+  --chart-4: 280 78% 70%;
+  --chart-5: 340 80% 70%;
+  --radius: 0.75rem;
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+}
+
+.glass {
+  @apply bg-white/60 dark:bg-slate-900/60 backdrop-blur-lg border border-white/30 dark:border-slate-700/40 shadow-lg;
+}
