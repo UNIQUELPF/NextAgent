@@ -11,6 +11,7 @@ import {
   FileText,
   Info,
 } from "lucide-react";
+import { type ReactNode } from "react";
 
 import type {
   AlertItem,
@@ -278,7 +279,7 @@ function Alerts({ alerts }: { alerts: AlertItem[] }) {
     续展提醒: "bg-emerald-200/25 text-emerald-600 border-emerald-300/60",
   };
 
-  const typeToIcon: Record<AlertItem["type"], JSX.Element> = {
+  const typeToIcon: Record<AlertItem["type"], ReactNode> = {
     补正期限: <AlarmClock className="h-4 w-4" />,
     公告期: <ClipboardList className="h-4 w-4" />,
     续展提醒: <CalendarClock className="h-4 w-4" />,
