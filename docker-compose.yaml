@@ -1,0 +1,123 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - portal-postgres:/var/lib/postgresql/data
+      - ./configs/postgres:/docker-entrypoint-initdb.d:ro
+
+  keto:
+    image: oryd/keto:v0.12.0
+    depends_on:
+      - keto-migrate
+      - postgres
+    volumes:
+      - ./configs/keto:/etc/config/keto:ro
+    command:
+      - serve
+      - --config
+      - /etc/config/keto/keto.yaml
+    ports:
+      - "4466:4466"
+      - "4467:4467"
+
+  keto-migrate:
+    image: oryd/keto:v0.12.0
+    depends_on:
+      - postgres
+    volumes:
+      - ./configs/keto:/etc/config/keto:ro
+    command:
+      - migrate
+      - up
+      - --yes
+      - --config
+      - /etc/config/keto/keto.yaml
+    restart: on-failure
+
+  kratos-migrate:
+    image: oryd/kratos:v1.2.0
+    depends_on:
+      - postgres
+    command:
+      - migrate
+      - sql
+      - -e
+      - --yes
+      - postgres://kratos:kratos@postgres:5432/kratos?sslmode=disable
+    restart: on-failure
+
+  kratos:
+    image: oryd/kratos:v1.2.0
+    depends_on:
+      - kratos-migrate
+    environment:
+      DSN: postgres://kratos:kratos@postgres:5432/kratos?sslmode=disable
+      LOG_LEVEL: info
+      SERVE_PUBLIC_BASE_URL: http://127.0.0.1:4455/
+      KRATOS_WEBHOOK_PASSWORD: kratos-hook
+    volumes:
+      - ./configs/kratos:/etc/config/kratos:ro
+    command:
+      - serve
+      - --config
+      - /etc/config/kratos/kratos.yaml
+    ports:
+      - "4455:4455"
+      - "4434:4434"
+
+  oathkeeper:
+    image: oryd/oathkeeper:v0.40.6
+    depends_on:
+      - kratos
+      - keto
+      - backend
+    environment:
+      LOG_LEVEL: info
+    volumes:
+      - ./configs/oathkeeper:/etc/config/oathkeeper:ro
+    ports:
+      - "4456:4456"
+      - "4457:4457"
+    command:
+      - serve
+      - --config
+      - /etc/config/oathkeeper/config.yaml
+
+  backend:
+    build:
+      context: ./backend
+    depends_on:
+      - keto
+    environment:
+      PORTAL__KETO__READ_REMOTE: http://keto:4466
+      PORTAL__KETO__WRITE_REMOTE: http://keto:4467
+      PORTAL__KETO__NAMESPACE_PREFIX: tenant
+      PORTAL__KETO__MEMBERSHIP_RELATION: member
+      PORTAL__SERVER__ADDRESS: ":8080"
+      PORTAL__KRATOS__WEBHOOK__USERNAME: kratos
+      PORTAL__KRATOS__WEBHOOK__PASSWORD: kratos-hook
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+    depends_on:
+      - kratos
+      - oathkeeper
+    environment:
+      NEXT_PUBLIC_KRATOS_PUBLIC_URL: http://localhost:4455
+    ports:
+      - "3000:3000"
+
+volumes:
+  portal-postgres:

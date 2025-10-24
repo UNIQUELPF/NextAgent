@@ -1,0 +1,105 @@
+version: v0.13.0
+
+dsn: postgres://kratos:kratos@postgres:5432/kratos?sslmode=disable&max_conns=20
+
+log:
+  level: info
+  format: json
+
+serve:
+  public:
+    base_url: http://127.0.0.1:4455/
+    port: 4455
+  admin:
+    base_url: http://kratos:4434/
+    port: 4434
+
+secrets:
+  cookie:
+    - please-change-this-cookie-secret
+  cipher:
+    - 3HCf98UbOFiF7dR79Spl6HpwQYfLO1LF
+
+identity:
+  default_schema_id: portal
+  schemas:
+    - id: portal
+      url: file:///etc/config/kratos/identity.schema.json
+
+selfservice:
+  default_browser_return_url: http://localhost:3000/
+  allowed_return_urls:
+    - http://localhost:3000
+    - http://localhost:3000/*
+  flows:
+    login:
+      ui_url: http://localhost:3000/auth/login
+    registration:
+      ui_url: http://localhost:3000/auth/register
+      after:
+        hooks:
+          - hook: web_hook
+            config:
+              url: http://backend:8080/internal/hooks/kratos/registration
+              method: POST
+              continue_on_error: false
+              auth:
+                type: basic_auth
+                config:
+                  user: kratos
+                  password: ${KRATOS_WEBHOOK_PASSWORD}
+    settings:
+      ui_url: http://localhost:3000/account/settings
+    verification:
+      use: code
+      ui_url: http://localhost:3000/auth/verify
+    recovery:
+      enabled: true
+      ui_url: http://localhost:3000/auth/recover
+  methods:
+    password:
+      enabled: true
+      config:
+        identifier: phone
+    code:
+      enabled: true
+      config:
+        lifespan: 5m
+        usage: login_registration_recovery
+    link:
+      enabled: false
+
+courier:
+  message_dispatch_rate: 15s
+  templates:
+    sms:
+      login_code:
+        body: "Your NextAgent login code is: {{ .Code }}"
+      verification_code:
+        body: "Verify your NextAgent account with code: {{ .Code }}"
+      recovery_code:
+        body: "Recover access with code: {{ .Code }}"
+  provider:
+    sms:
+      type: twilio
+      config:
+        from: "+15555555555"
+        account_sid: ${TWILIO_ACCOUNT_SID}
+        auth_token: ${TWILIO_AUTH_TOKEN}
+
+session:
+  cookie:
+    persist: true
+    same_site: Lax
+  lifespan: 720h
+
+feature_flags:
+  use_deprecated_flow_id_forwarding: false
+
+hashers:
+  argon2:
+    parallelism: 1
+    memory: 128MB
+    iterations: 2
+    salt_length: 16
+    key_length: 32

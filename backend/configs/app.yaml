@@ -1,0 +1,24 @@
+server:
+  address: ":8080"
+
+logging:
+  level: info
+  development: true
+
+oathkeeper:
+  identity_header: X-Session-Subject
+  roles_header: X-Session-Roles
+  user_type_header: X-Session-User-Type
+  tenant_header: X-Tenant-Id
+keto:
+  read_remote: http://localhost:4466
+  write_remote: http://localhost:4467
+  namespace_prefix: tenant
+  permission_relation: can
+  membership_relation: member
+  request_timeout: 2s
+
+kratos:
+  webhook:
+    username: kratos
+    password: kratos-hook

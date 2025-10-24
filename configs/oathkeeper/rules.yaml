@@ -1,0 +1,56 @@
+- id: public-next
+  match:
+    url: http://frontend:3000/<**>
+    methods:
+      - GET
+  authenticators:
+    - handler: anonymous
+  authorizer:
+    handler: allow
+  mutators:
+    - handler: noop
+
+- id: kratos-public
+  match:
+    url: http://kratos:4455/<**>
+    methods:
+      - GET
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+  authenticators:
+    - handler: anonymous
+  authorizer:
+    handler: allow
+  mutators:
+    - handler: noop
+
+- id: backend-api
+  match:
+    url: http://backend:8080/api/<**>
+    methods:
+      - GET
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+  authenticators:
+    - handler: cookie_session
+  authorizer:
+    handler: remote_json
+    config:
+      remote: http://backend:8080/v1/authorize
+      payload: |
+        {
+          "object": "{{ print .MatchContext.Request.URL.Path }}",
+          "action": "{{ print .MatchContext.Request.Method }}"
+        }
+  mutators:
+    - handler: header
+      config:
+        headers:
+          X-Session-Subject: "{{ print .Session.Subject }}"
+          X-Session-User-Type: "{{ index .Session.Identity.Traits \"user_type\" }}"
+          X-Session-Roles: "{{ with (index .Session.Identity.Traits \"roles\") }}{{ join \",\" . }}{{ end }}"
+          X-Tenant-Id: "{{ with (index .Session.Identity.Traits \"tenant_id\") }}{{ . }}{{ end }}"
