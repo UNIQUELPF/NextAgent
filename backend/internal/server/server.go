@@ -17,13 +17,13 @@ import (
 
 // Server bundles the HTTP router and supporting services.
 type Server struct {
-	router     *gin.Engine
-	cfg        *config.Config
-	logger     *zap.Logger
-	ketoClient *keto.Client
+	router          *gin.Engine
+	cfg             *config.Config
+	logger          *zap.Logger
+	ketoClient      *keto.Client
 	namespacePrefix string
-	webhookUser string
-	webhookPass string
+	webhookUser     string
+	webhookPass     string
 }
 
 // New constructs the HTTP server with middleware and routes.
@@ -41,13 +41,13 @@ func New(cfg *config.Config, logger *zap.Logger, ketoClient *keto.Client) *Serve
 	))
 
 	s := &Server{
-		router:     router,
-		cfg:        cfg,
-		logger:     logger,
-		ketoClient: ketoClient,
+		router:          router,
+		cfg:             cfg,
+		logger:          logger,
+		ketoClient:      ketoClient,
 		namespacePrefix: cfg.Keto.NamespacePrefix,
-		webhookUser: cfg.Kratos.Webhook.Username,
-		webhookPass: cfg.Kratos.Webhook.Password,
+		webhookUser:     cfg.Kratos.Webhook.Username,
+		webhookPass:     cfg.Kratos.Webhook.Password,
 	}
 
 	s.registerRoutes()
@@ -62,11 +62,15 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) registerRoutes() {
-	s.router.GET("/healthz", func(c *gin.Context) {
+	api := s.router.Group("/api")
+
+	api.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	s.router.GET("/v1/me", func(c *gin.Context) {
+	v1 := api.Group("/v1")
+
+	v1.GET("/me", func(c *gin.Context) {
 		ctx := middleware.IdentityFromContext(c)
 		c.JSON(http.StatusOK, gin.H{
 			"subject":   ctx.Subject,
@@ -76,7 +80,7 @@ func (s *Server) registerRoutes() {
 		})
 	})
 
-	s.router.POST("/v1/authorize", func(c *gin.Context) {
+	v1.POST("/authorize", func(c *gin.Context) {
 		var payload struct {
 			Namespace string `json:"namespace"`
 			Object    string `json:"object" binding:"required"`
@@ -110,7 +114,7 @@ func (s *Server) registerRoutes() {
 		c.JSON(http.StatusOK, gin.H{"allowed": ok})
 	})
 
-	s.router.POST("/internal/hooks/kratos/registration",
+	api.POST("/internal/hooks/kratos/registration",
 		s.requireWebhookAuth(),
 		s.handleRegistrationHook,
 	)
@@ -123,19 +127,22 @@ func (s *Server) requireWebhookAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		auth := c.GetHeader("Authorization")
 		if auth == "" || !strings.HasPrefix(auth, "Basic ") {
+			s.logger.Warn("missing or invalid auth header", zap.String("authorization", auth))
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 
-		decoded, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(auth, "Basic "))
+		raw := strings.TrimPrefix(auth, "Basic ")
+		decoded, err := base64.StdEncoding.DecodeString(raw)
 		if err != nil {
-			s.logger.Warn("invalid basic auth header", zap.Error(err))
+			s.logger.Warn("invalid basic auth header", zap.Error(err), zap.String("authorization", auth), zap.String("raw", raw))
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 
 		parts := strings.SplitN(string(decoded), ":", 2)
 		if len(parts) != 2 {
+			s.logger.Warn("basic auth parts malformed", zap.String("decoded", string(decoded)))
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
@@ -143,6 +150,7 @@ func (s *Server) requireWebhookAuth() gin.HandlerFunc {
 		userMatch := subtle.ConstantTimeCompare([]byte(parts[0]), []byte(expectedUser)) == 1
 		passMatch := subtle.ConstantTimeCompare([]byte(parts[1]), []byte(expectedPass)) == 1
 		if !userMatch || !passMatch {
+			s.logger.Warn("basic auth credentials mismatch", zap.String("user", parts[0]), zap.String("provided_pass", parts[1]), zap.String("expected_user", expectedUser), zap.String("expected_pass", expectedPass))
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}

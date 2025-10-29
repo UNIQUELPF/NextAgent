@@ -1,18 +1,7 @@
-- id: public-next
-  match:
-    url: http://frontend:3000/<**>
-    methods:
-      - GET
-  authenticators:
-    - handler: anonymous
-  authorizer:
-    handler: allow
-  mutators:
-    - handler: noop
-
 - id: kratos-public
+  priority: 300
   match:
-    url: http://kratos:4433/<**>
+    url: http://localhost:4456/<\.ory/.*>
     methods:
       - GET
       - POST
@@ -25,10 +14,14 @@
     handler: allow
   mutators:
     - handler: noop
+  upstream:
+    url: http://kratos:4433
+    strip_path: /.ory
 
 - id: backend-api
+  priority: 200
   match:
-    url: http://backend:8080/api/<**>
+    url: http://localhost:4456/<api/.*>
     methods:
       - GET
       - POST
@@ -40,7 +33,7 @@
   authorizer:
     handler: remote_json
     config:
-      remote: http://backend:8080/v1/authorize
+      remote: http://backend:8080/api/v1/authorize
       payload: |
         {
           "object": "{{ print .MatchContext.Request.URL.Path }}",
@@ -54,3 +47,60 @@
           X-Session-User-Type: "{{ index .Session.Identity.Traits \"user_type\" }}"
           X-Session-Roles: "{{ with (index .Session.Identity.Traits \"roles\") }}{{ join \",\" . }}{{ end }}"
           X-Tenant-Id: "{{ with (index .Session.Identity.Traits \"tenant_id\") }}{{ . }}{{ end }}"
+  upstream:
+    url: http://backend:8080
+
+- id: front-assets
+  priority: 150
+  match:
+    url: http://localhost:4456/<_next/.*>
+    methods:
+      - GET
+      - HEAD
+      - OPTIONS
+  authenticators:
+    - handler: anonymous
+  authorizer:
+    handler: allow
+  mutators:
+    - handler: noop
+  upstream:
+    url: http://frontend:3000
+
+- id: front-root
+  priority: 140
+  match:
+    url: http://localhost:4456/
+    methods:
+      - GET
+      - HEAD
+      - OPTIONS
+  authenticators:
+    - handler: anonymous
+  authorizer:
+    handler: allow
+  mutators:
+    - handler: noop
+  upstream:
+    url: http://frontend:3000
+
+- id: front-all
+  priority: 100
+  match:
+    url: http://localhost:4456/<(?!_next/|api/|\.ory/).+>
+    methods:
+      - GET
+      - HEAD
+      - OPTIONS
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+  authenticators:
+    - handler: anonymous
+  authorizer:
+    handler: allow
+  mutators:
+    - handler: noop
+  upstream:
+    url: http://frontend:3000

@@ -78,7 +78,7 @@ services:
     environment:
       DSN: postgres://kratos:kratos@postgres:5432/kratos?sslmode=disable
       LOG_LEVEL: info
-      SERVE_PUBLIC_BASE_URL: http://127.0.0.1:4433/
+      SERVE_PUBLIC_BASE_URL: http://localhost:4456/.ory/
       KRATOS_WEBHOOK_PASSWORD: kratos-hook
     volumes:
       - ./configs/kratos:/etc/config/kratos:ro
@@ -134,7 +134,7 @@ services:
       - kratos
       - oathkeeper
     environment:
-      NEXT_PUBLIC_KRATOS_PUBLIC_URL: http://localhost:4433
+      NEXT_PUBLIC_KRATOS_PUBLIC_URL: http://localhost:4456/.ory
     ports:
       - "3000:3000"
 

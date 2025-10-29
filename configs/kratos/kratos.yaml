@@ -1,4 +1,4 @@
-version: v1.3.0
+version: v0.13.0
 
 dsn: postgres://kratos:kratos@postgres:5432/kratos?sslmode=disable&max_conns=20
 
@@ -8,11 +8,12 @@ log:
 
 serve:
   public:
-    base_url: http://127.0.0.1:4433/
+    base_url: http://localhost:4456/.ory/
     port: 4433
     cors:
       enabled: true
       allowed_origins:
+        - http://localhost:4456
         - http://localhost:3000
       allowed_methods:
         - GET
@@ -46,37 +47,40 @@ identity:
       url: file:///etc/config/kratos/identity.schema.json
 
 selfservice:
-  default_browser_return_url: http://localhost:3000/
+  default_browser_return_url: http://localhost:4456/
   allowed_return_urls:
+    - http://localhost:4456
+    - http://localhost:4456/*
     - http://localhost:3000
     - http://localhost:3000/*
   flows:
     login:
-      ui_url: http://localhost:3000/auth/login
+      ui_url: http://localhost:4456/auth/login
       lifespan: 10m
     registration:
-      ui_url: http://localhost:3000/auth/register
+      ui_url: http://localhost:4456/auth/register
       lifespan: 10m
       after:
-        hooks:
-          - hook: web_hook
-            config:
-              url: http://backend:8080/internal/hooks/kratos/registration
-              method: POST
-              auth:
-                type: basic_auth
-                config:
-                  user: kratos
-                  password: ${KRATOS_WEBHOOK_PASSWORD}
+        code:
+          hooks:
+            - hook: session
+            - hook: web_hook
+              config:
+                url: http://backend:8080/api/internal/hooks/kratos/registration
+                method: POST
+                body: base64://ZnVuY3Rpb24oY3R4KSB7CiAgaWRlbnRpdHk6IGN0eC5pZGVudGl0eSwKfQo=
+                headers:
+                  Content-Type: application/json
+                  Authorization: Basic a3JhdG9zOmtyYXRvcy1ob29r
     settings:
-      ui_url: http://localhost:3000/account/settings
+      ui_url: http://localhost:4456/account/settings
     verification:
       enabled: true
       use: code
-      ui_url: http://localhost:3000/auth/verify
+      ui_url: http://localhost:4456/auth/verify
     recovery:
       enabled: true
-      ui_url: http://localhost:3000/auth/recover
+      ui_url: http://localhost:4456/auth/recover
       use: code
   methods:
     password:
@@ -114,7 +118,7 @@ feature_flags:
 
 hashers:
   argon2:
-    parallelism: 1
+    parallelism: 2
     memory: 128MB
     iterations: 2
     salt_length: 16

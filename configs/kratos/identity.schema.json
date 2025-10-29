@@ -27,6 +27,12 @@
             }
           }
         },
+        "nickname": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "title": "Nickname"
+        },
         "username": {
           "type": "string",
           "minLength": 3,
@@ -56,7 +62,7 @@
       },
       "required": [
         "phone",
-        "username",
+        "nickname",
         "user_type"
       ]
     }

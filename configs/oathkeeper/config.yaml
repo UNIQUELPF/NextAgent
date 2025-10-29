@@ -13,6 +13,7 @@ serve:
 access_rules:
   repositories:
     - file:///etc/config/oathkeeper/rules.yaml
+  matching_strategy: regexp
 
 authenticators:
   anonymous:
@@ -29,6 +30,12 @@ authenticators:
 authorizers:
   allow:
     enabled: true
+  remote_json:
+    enabled: true
+    config:
+      remote: http://backend:8080/api/v1/authorize
+      payload: |
+        {}
 
 errors:
   fallback:
@@ -42,3 +49,7 @@ errors:
 mutators:
   noop:
     enabled: true
+  header:
+    enabled: true
+    config:
+      headers: {}

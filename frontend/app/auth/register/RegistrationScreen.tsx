@@ -28,10 +28,11 @@ export function RegistrationScreen() {
   const [localPhone, setLocalPhone] = useState(""); // UI 输入，仅 11 位数字
   const [code, setCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [isSendingCode, setIsSendingCode] = useState(false);
   const [isVerifyingCode, setIsVerifyingCode] = useState(false);
   const [step, setStep] = useState<"code" | "password">("code");
-  const [username, setUsername] = useState("");
+  const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
@@ -56,6 +57,14 @@ export function RegistrationScreen() {
     }
     return extractNodeValue(flow.ui.nodes, "csrf_token") ?? "";
   }, [flow]);
+
+  const refreshFlow = useCallback(async (id: string) => {
+    const { data } = await ory.getRegistrationFlow({ id });
+    setFlow(data);
+    return data;
+  }, []);
+
+  const isNetworkError = (err: any) => Boolean(err?.isAxiosError && !err?.response);
 
   const deriveStepFromFlow = useCallback((f: RegistrationFlow | null) => {
     if (!f) {
@@ -146,9 +155,9 @@ export function RegistrationScreen() {
             }
           }
         }
-        const nameFromFlow = extractNodeValue(data.ui.nodes, "traits.username");
-        if (nameFromFlow) {
-          setUsername(nameFromFlow);
+        const nicknameFromFlow = extractNodeValue(data.ui.nodes, "traits.nickname");
+        if (nicknameFromFlow) {
+          setNickname(nicknameFromFlow);
         }
       })
       .catch((err) => {
@@ -172,6 +181,25 @@ export function RegistrationScreen() {
 
   const passwordsMatch = password === confirmPassword;
 
+  useEffect(() => {
+    if (!codeSent) {
+      return;
+    }
+    if (resendCooldown <= 0) {
+      setResendCooldown(60);
+    }
+  }, [codeSent, resendCooldown]);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendCooldown]);
+
   const sendCode = useCallback(async () => {
     if (!flow) {
       return;
@@ -185,20 +213,18 @@ export function RegistrationScreen() {
     setIsSendingCode(true);
     setError(null);
 
-    const tempUsername = `user_${normalizedPhone.replace('+86', '')}`;
-    const body: UpdateRegistrationFlowBody & {
-      identifier: string;
-      channel: "sms";
-    } = {
+    const tempNickname = `用户${normalizedPhone.replace("+86", "")}`;
+    const shouldResend = codeSent || flow?.state === "sent_email";
+
+    const body: UpdateRegistrationFlowBody = {
       method: CODE_METHOD,
       traits: {
         phone: normalizedPhone,
-        username: tempUsername,
+        nickname: tempNickname,
         user_type: DEFAULT_USER_TYPE,
       },
       csrf_token: csrfToken,
-      identifier: normalizedPhone,
-      channel: "sms",
+      ...(shouldResend ? { resend: CODE_METHOD } : {}),
     };
 
     try {
@@ -210,14 +236,27 @@ export function RegistrationScreen() {
         setFlow(data);
       }
       setCodeSent(true);
+      setResendCooldown(60);
       setPhone(normalizedPhone);
     } catch (err) {
       console.error("send registration code failed", err);
+      if (isNetworkError(err) && flow) {
+        try {
+          await refreshFlow(flow.id);
+          setCodeSent(true);
+          setResendCooldown(60);
+          setPhone(normalizedPhone);
+          setError(null);
+          return;
+        } catch (refreshErr) {
+          console.error("refresh registration flow failed", refreshErr);
+        }
+      }
       handleFlowError(err);
     } finally {
       setIsSendingCode(false);
     }
-  }, [csrfToken, flow, handleFlowError, localPhone]);
+  }, [codeSent, csrfToken, flow, handleFlowError, localPhone, refreshFlow]);
 
   const verifyCode = useCallback(
     async (event: FormEvent) => {
@@ -238,21 +277,16 @@ export function RegistrationScreen() {
       setIsVerifyingCode(true);
       setError(null);
 
-      const tempUsername = `user_${normalizedPhone.replace('+86', '')}`;
-      const body: UpdateRegistrationFlowBody & {
-        identifier: string;
-        channel: "sms";
-      } = {
+      const tempNickname = `用户${normalizedPhone.replace("+86", "")}`;
+      const body: UpdateRegistrationFlowBody = {
         method: CODE_METHOD,
         code,
         traits: {
           phone: normalizedPhone,
-          username: tempUsername,
+          nickname: tempNickname,
           user_type: DEFAULT_USER_TYPE,
         },
         csrf_token: csrfToken,
-        identifier: normalizedPhone,
-        channel: "sms",
       };
 
       try {
@@ -265,16 +299,36 @@ export function RegistrationScreen() {
           setStep("password");
           setPhone(normalizedPhone);
         } else if (data.identity?.id) {
-          router.push(returnTo || "/");
+          try {
+            const { data: settingsFlow } = await ory.createBrowserSettingsFlow({ returnTo });
+            const params = new URLSearchParams({ flow: settingsFlow.id });
+            if (returnTo) {
+              params.set("return_to", returnTo);
+            }
+            router.push(`/account/setup?${params.toString()}`);
+          } catch (settingsErr) {
+            console.error("createBrowserSettingsFlow after registration failed", settingsErr);
+            router.push(returnTo || "/");
+          }
         }
       } catch (err) {
         console.error("verify registration code failed", err);
+        if (isNetworkError(err) && flow) {
+          try {
+            await refreshFlow(flow.id);
+            setPhone(normalizedPhone);
+            setError(null);
+            return;
+          } catch (refreshErr) {
+            console.error("refresh registration flow failed", refreshErr);
+          }
+        }
         handleFlowError(err);
       } finally {
         setIsVerifyingCode(false);
       }
     },
-    [code, csrfToken, flow, handleFlowError, localPhone, phone, returnTo, router],
+    [code, csrfToken, flow, handleFlowError, localPhone, phone, returnTo, router, refreshFlow],
   );
 
   const submitPassword = useCallback(
@@ -288,8 +342,8 @@ export function RegistrationScreen() {
         setError("请输入有效的 11 位手机号。");
         return;
       }
-      if (!username.trim()) {
-        setError("请输入用户名。");
+      if (!nickname.trim()) {
+        setError("请输入昵称。");
         return;
       }
       if (!password) {
@@ -314,7 +368,7 @@ export function RegistrationScreen() {
         password,
         traits: {
           phone: normalizedPhone,
-          username: username || `user_${normalizedPhone.replace('+86', '')}`,
+          nickname: nickname || `用户${normalizedPhone.replace("+86", "")}`,
           user_type: DEFAULT_USER_TYPE,
           roles: DEFAULT_ROLES,
         },
@@ -339,7 +393,7 @@ export function RegistrationScreen() {
         setIsSubmittingPassword(false);
       }
     },
-    [csrfToken, flow, handleFlowError, localPhone, password, passwordError, passwordsMatch, phone, returnTo, router, username],
+    [csrfToken, flow, handleFlowError, localPhone, nickname, password, passwordError, passwordsMatch, phone, returnTo, router],
   );
 
   return (
@@ -402,9 +456,15 @@ export function RegistrationScreen() {
               type="button"
               onClick={sendCode}
               className="h-10 rounded-md border px-3 text-sm font-medium"
-              disabled={isSendingCode || !localPhone}
+              disabled={isSendingCode || !localPhone || resendCooldown > 0}
             >
-              {isSendingCode ? "发送中..." : codeSent ? "重新发送" : "发送验证码"}
+              {isSendingCode
+                ? "发送中..."
+                : codeSent && resendCooldown > 0
+                  ? `重新发送 (${resendCooldown}s)`
+                  : codeSent
+                    ? "重新发送"
+                    : "发送验证码"}
             </button>
           </div>
           <button
@@ -424,12 +484,12 @@ export function RegistrationScreen() {
             已验证手机号：<span className="font-medium text-foreground">{formatPhone(phone)}</span>
           </div>
           <label className="flex flex-col gap-1 text-sm">
-            用户名
+            昵称
             <input
               type="text"
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
-              placeholder="请输入用户名"
+              value={nickname}
+              onChange={(event) => setNickname(event.target.value)}
+              placeholder="请输入昵称"
               className="rounded-md border px-3 py-2"
             />
           </label>

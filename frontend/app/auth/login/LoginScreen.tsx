@@ -81,6 +81,14 @@ export function LoginScreen() {
     }
   }, [prefilledPhone]);
 
+  const refreshFlow = useCallback(async (id: string) => {
+    const { data } = await ory.getLoginFlow({ id });
+    setFlow(data);
+    return data;
+  }, []);
+
+  const isNetworkError = (err: any) => Boolean(err?.isAxiosError && !err?.response);
+
   const csrfToken = useMemo(() => {
     if (!flow) {
       return "";
@@ -97,8 +105,9 @@ export function LoginScreen() {
       ory
         .createBrowserLoginFlow({ returnTo })
         .then(({ data }) => {
-          router.replace(`/auth/login?flow=${data.id}${returnTo ? `&return_to=${encodeURIComponent(returnTo)}` : ""
-            }`);
+          router.replace(
+            `/auth/login?flow=${data.id}${returnTo ? `&return_to=${encodeURIComponent(returnTo)}` : ""}`,
+          );
         })
         .catch((err) => {
           console.error("createBrowserLoginFlow failed", err);
@@ -255,9 +264,20 @@ export function LoginScreen() {
       setError(null);
     } catch (err) {
       console.error("send login code failed", err);
+      if (isNetworkError(err) && flow) {
+        try {
+          await refreshFlow(flow.id);
+          setCodeSent(true);
+          setPhone(normalizedPhone);
+          setError(null);
+          return;
+        } catch (refreshErr) {
+          console.error("refresh login flow failed", refreshErr);
+        }
+      }
       handleFlowError(err, { method: "code", phone: normalizedPhone });
     }
-  }, [flow, csrfToken, handleFlowError, localPhone, phone, redirectToRegistration]);
+  }, [flow, csrfToken, handleFlowError, localPhone, phone, redirectToRegistration, refreshFlow]);
 
   const verifyCode = useCallback(
     async (event: FormEvent) => {
@@ -305,19 +325,20 @@ export function LoginScreen() {
         }
       } catch (err) {
         console.error("verify login code failed", err);
+        if (isNetworkError(err) && flow) {
+          try {
+            await refreshFlow(flow.id);
+            setPhone(normalizedPhone);
+            setError(null);
+            return;
+          } catch (refreshErr) {
+            console.error("refresh login flow failed", refreshErr);
+          }
+        }
         handleFlowError(err, { method: "code", phone: normalizedPhone });
       }
     },
-    [
-      afterSuccess,
-      code,
-      csrfToken,
-      flow,
-      handleFlowError,
-      localPhone,
-      phone,
-      redirectToRegistration,
-    ],
+    [afterSuccess, code, csrfToken, flow, handleFlowError, localPhone, phone, redirectToRegistration, refreshFlow],
   );
 
   return (
