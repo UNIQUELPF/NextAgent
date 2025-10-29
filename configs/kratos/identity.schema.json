@@ -4,34 +4,61 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "phone": {
-      "type": "string",
-      "pattern": "^\\+?[1-9]\\d{7,14}$",
-      "description": "E.164 formatted phone number used as primary credential."
-    },
-    "user_type": {
-      "type": "string",
-      "enum": [
-        "external",
-        "internal",
-        "tenant"
-      ]
-    },
-    "tenant_id": {
-      "type": "string",
-      "minLength": 1
-    },
-    "roles": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "pattern": "^[a-z0-9:_-]{3,64}$"
+    "traits": {
+      "type": "object",
+      "properties": {
+        "phone": {
+          "type": "string",
+          "format": "tel",
+          "title": "Phone number",
+          "minLength": 3,
+          "ory.sh/kratos": {
+            "credentials": {
+              "password": {
+                "identifier": true
+              },
+              "code": {
+                "identifier": true,
+                "via": "sms"
+              }
+            },
+            "verification": {
+              "via": "sms"
+            }
+          }
+        },
+        "username": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9._-]+$"
+        },
+        "user_type": {
+          "type": "string",
+          "enum": [
+            "external",
+            "internal",
+            "tenant"
+          ]
+        },
+        "tenant_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9:_-]{3,64}$"
+          },
+          "uniqueItems": true
+        }
       },
-      "uniqueItems": true
+      "required": [
+        "phone",
+        "username",
+        "user_type"
+      ]
     }
-  },
-  "required": [
-    "phone",
-    "user_type"
-  ]
+  }
 }

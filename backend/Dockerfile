@@ -3,6 +3,7 @@ FROM golang:1.22 AS build
 WORKDIR /src
 
 COPY go.mod ./
+COPY go.sum ./
 COPY configs ./configs
 COPY cmd ./cmd
 COPY internal ./internal

@@ -12,7 +12,7 @@
 
 - id: kratos-public
   match:
-    url: http://kratos:4455/<**>
+    url: http://kratos:4433/<**>
     methods:
       - GET
       - POST

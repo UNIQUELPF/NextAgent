@@ -1,3 +1,7 @@
+version: v0.14.0
+
+dsn: postgres://keto:keto@postgres:5432/keto?sslmode=disable
+
 log:
   level: info
 
@@ -9,9 +13,5 @@ serve:
     host: 0.0.0.0
     port: 4467
 
-dsn: postgres://keto:keto@postgres:5432/keto?sslmode=disable
-
-config:
-  namespaces:
-    location: file:///etc/config/keto/namespaces.yaml
-
+namespaces:
+  location: file:///etc/config/keto/namespaces/

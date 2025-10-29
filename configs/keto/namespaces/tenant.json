@@ -1,0 +1,9 @@
+{
+    "namespace": "tenant",
+    "id": 0,
+    "relations": {
+        "owner": {},
+        "admin": {},
+        "member": {}
+    }
+}

@@ -1,4 +1,4 @@
-version: v0.13.0
+version: v1.3.0
 
 dsn: postgres://kratos:kratos@postgres:5432/kratos?sslmode=disable&max_conns=20
 
@@ -8,8 +8,27 @@ log:
 
 serve:
   public:
-    base_url: http://127.0.0.1:4455/
-    port: 4455
+    base_url: http://127.0.0.1:4433/
+    port: 4433
+    cors:
+      enabled: true
+      allowed_origins:
+        - http://localhost:3000
+      allowed_methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      allowed_headers:
+        - Authorization
+        - Content-Type
+        - X-Requested-With
+        - Accept
+      exposed_headers:
+        - Content-Type
+      allow_credentials: true
   admin:
     base_url: http://kratos:4434/
     port: 4434
@@ -34,15 +53,16 @@ selfservice:
   flows:
     login:
       ui_url: http://localhost:3000/auth/login
+      lifespan: 10m
     registration:
       ui_url: http://localhost:3000/auth/register
+      lifespan: 10m
       after:
         hooks:
           - hook: web_hook
             config:
               url: http://backend:8080/internal/hooks/kratos/registration
               method: POST
-              continue_on_error: false
               auth:
                 type: basic_auth
                 config:
@@ -51,16 +71,16 @@ selfservice:
     settings:
       ui_url: http://localhost:3000/account/settings
     verification:
+      enabled: true
       use: code
       ui_url: http://localhost:3000/auth/verify
     recovery:
       enabled: true
       ui_url: http://localhost:3000/auth/recover
+      use: code
   methods:
     password:
       enabled: true
-      config:
-        identifier: phone
     code:
       enabled: true
       config:
@@ -70,31 +90,27 @@ selfservice:
       enabled: false
 
 courier:
-  message_dispatch_rate: 15s
-  templates:
-    sms:
-      login_code:
-        body: "Your NextAgent login code is: {{ .Code }}"
-      verification_code:
-        body: "Verify your NextAgent account with code: {{ .Code }}"
-      recovery_code:
-        body: "Recover access with code: {{ .Code }}"
-  provider:
-    sms:
-      type: twilio
-      config:
-        from: "+15555555555"
-        account_sid: ${TWILIO_ACCOUNT_SID}
-        auth_token: ${TWILIO_AUTH_TOKEN}
+  sms:
+    enabled: true
+    from: "+8610000000000"
+  template_override_path: /etc/config/kratos/courier/templates
+  channels:
+    - id: sms
+      type: http
+      request_config:
+        url: http://sms-mock:8080/messages
+        method: POST
+        body: base64://ZnVuY3Rpb24oY3R4KSB7CgogIFRvOiBjdHgucmVjaXBpZW50LAogIEJvZHk6IGN0eC5ib2R5LAoKfQ==
+        headers:
+          Content-Type: application/json
 
 session:
   cookie:
-    persist: true
     same_site: Lax
   lifespan: 720h
 
 feature_flags:
-  use_deprecated_flow_id_forwarding: false
+  use_continue_with_transitions: true
 
 hashers:
   argon2:

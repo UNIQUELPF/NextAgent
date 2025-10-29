@@ -1,46 +1,54 @@
 "use client";
 
-import { UpdateRegistrationFlowBody } from "@ory/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { UpdateRegistrationFlowBody } from "@ory/client";
 
 import { ory } from "@/lib/ory";
 
-import type { RegistrationFlow, UiNode } from "@ory/client";
+import type {
+  RegistrationFlow,
+  SuccessfulNativeRegistration,
+  UiNode,
+  UiNodeAttributes,
+} from "@ory/client";
 
 const PASSWORD_METHOD = "password";
 const CODE_METHOD = "code";
-
-const defaultRoles = {
-  external: ["customer"],
-  internal: ["staff"],
-  tenant: ["tenant_admin"],
-};
+const DEFAULT_USER_TYPE = "external";
+const DEFAULT_ROLES = ["customer"];
 
 export function RegistrationScreen() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const [flow, setFlow] = useState<RegistrationFlow | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [phone, setPhone] = useState(""); // 存储 E.164，如 +8613800000000
+  const [localPhone, setLocalPhone] = useState(""); // UI 输入，仅 11 位数字
   const [code, setCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
-  const [userType, setUserType] = useState<"external" | "internal" | "tenant">(
-    "external",
-  );
-  const [tenantId, setTenantId] = useState("");
-  const [rolesInput, setRolesInput] = useState(defaultRoles.external.join(","));
-  const flowId = searchParams.get("flow");
-  const returnTo = searchParams.get("return_to") ?? "/welcome";
+  const [isSendingCode, setIsSendingCode] = useState(false);
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+  const [step, setStep] = useState<"code" | "password">("code");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
 
-  const roles = useMemo(() => {
-    return rolesInput
-      .split(",")
-      .map((role) => role.trim())
-      .filter(Boolean);
-  }, [rolesInput]);
+  const flowId = searchParams.get("flow");
+  const returnTo = searchParams.get("return_to") ?? "/";
+  const prefilledPhone = searchParams.get("phone");
+
+  useEffect(() => {
+    if (prefilledPhone) {
+      const normalized = normalizePhone(prefilledPhone);
+      if (normalized) {
+        setPhone(normalized);
+        setLocalPhone(stripCountryCode(normalized));
+      }
+    }
+  }, [prefilledPhone]);
 
   const csrfToken = useMemo(() => {
     if (!flow) {
@@ -49,46 +57,41 @@ export function RegistrationScreen() {
     return extractNodeValue(flow.ui.nodes, "csrf_token") ?? "";
   }, [flow]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
+  const deriveStepFromFlow = useCallback((f: RegistrationFlow | null) => {
+    if (!f) {
+      return "code";
     }
-
-    if (!flowId) {
-      ory
-        .createBrowserRegistrationFlow({ returnTo })
-        .then(({ data }) => {
-          router.replace(`/auth/register?flow=${data.id}${
-            returnTo ? `&return_to=${encodeURIComponent(returnTo)}` : ""
-          }`);
-        })
-        .catch((err) => {
-          console.error("createBrowserRegistrationFlow failed", err);
-          setError("无法初始化注册流程，请稍后再试。");
-        });
-      return;
+    const hasPasswordNode = f.ui.nodes.some((node) => {
+      const attrs = node.attributes as UiNodeAttributes | undefined;
+      if (!attrs) {
+        return false;
+      }
+      const name = (attrs as Partial<InputNode>).name;
+      if (name === "password") {
+        return true;
+      }
+      const group = (attrs as { group?: string }).group;
+      return group === "password";
+    });
+    const requiresCode = f.ui.nodes.some((node) => {
+      const attrs = node.attributes as UiNodeAttributes | undefined;
+      return (attrs as Partial<InputNode>)?.name === "code";
+    });
+    if (hasPasswordNode && !requiresCode) {
+      return "password";
     }
-
-    ory
-      .getRegistrationFlow({ id: flowId })
-      .then(({ data }) => {
-        setFlow(data);
-        if (!phone) {
-          const identifier = extractNodeValue(data.ui.nodes, "traits.phone");
-          if (identifier) {
-            setPhone(identifier);
-          }
-        }
-      })
-      .catch((err) => {
-        console.error("getRegistrationFlow failed", err);
-        setError("注册流程已失效，请刷新页面。");
-      });
-  }, [flowId, phone, returnTo, router]);
+    return "code";
+  }, []);
 
   useEffect(() => {
-    setRolesInput(defaultRoles[userType].join(","));
-  }, [userType]);
+    setStep((prev) => {
+      const next = deriveStepFromFlow(flow);
+      if (prev !== next) {
+        return next;
+      }
+      return prev;
+    });
+  }, [flow, deriveStepFromFlow]);
 
   const handleFlowError = useCallback((err: any) => {
     const response = err?.response;
@@ -104,96 +107,117 @@ export function RegistrationScreen() {
     setError("注册失败，请重试。");
   }, []);
 
-  const traits = useMemo(() => {
-    return {
-      phone,
-      user_type: userType,
-      tenant_id: tenantId || undefined,
-      roles,
-    };
-  }, [phone, roles, tenantId, userType]);
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
 
-  const afterSuccess = useCallback(() => {
-    setError(null);
-    router.push(returnTo || "/welcome");
-  }, [returnTo, router]);
-
-  const submitPassword = useCallback(
-    async (event: FormEvent) => {
-      event.preventDefault();
-      if (!flow) {
-        return;
-      }
-      if (!phone || !password) {
-        setError("请填写手机号和密码。");
-        return;
-      }
-      if (password !== confirmPassword) {
-        setError("两次输入的密码不一致。");
-        return;
-      }
-
-      const body: UpdateRegistrationFlowBody = {
-        method: PASSWORD_METHOD,
-        csrf_token: csrfToken,
-        password,
-        traits,
-      };
-
-      try {
-        const { data } = await ory.updateRegistrationFlow({
-          flowId: flow.id,
-          updateRegistrationFlowBody: body,
+    if (!flowId) {
+      ory
+        .createBrowserRegistrationFlow({ returnTo })
+        .then(({ data }) => {
+          const params = new URLSearchParams({ flow: data.id });
+          if (returnTo) {
+            params.set("return_to", returnTo);
+          }
+          if (prefilledPhone) {
+            params.set("phone", prefilledPhone);
+          }
+          router.replace(`/auth/register?${params.toString()}`);
+        })
+        .catch((err) => {
+          console.error("createBrowserRegistrationFlow failed", err);
+          setError("无法初始化注册流程，请稍后再试。");
         });
-        if (data.identity?.id) {
-          afterSuccess();
-          return;
-        }
+      return;
+    }
+
+    ory
+      .getRegistrationFlow({ id: flowId })
+      .then(({ data }) => {
         setFlow(data);
-      } catch (err) {
-        console.error("password registration failed", err);
-        handleFlowError(err);
-      }
-    },
-    [
-      afterSuccess,
-      confirmPassword,
-      csrfToken,
-      flow,
-      handleFlowError,
-      password,
-      phone,
-      traits,
-    ],
-  );
+        if (!phone) {
+          const identifier = extractNodeValue(data.ui.nodes, "traits.phone");
+          if (identifier) {
+            const normalized = normalizePhone(identifier);
+            if (normalized) {
+              setPhone(normalized);
+              setLocalPhone(stripCountryCode(normalized));
+            }
+          }
+        }
+        const nameFromFlow = extractNodeValue(data.ui.nodes, "traits.username");
+        if (nameFromFlow) {
+          setUsername(nameFromFlow);
+        }
+      })
+      .catch((err) => {
+        console.error("getRegistrationFlow failed", err);
+        setError("注册流程已失效，请刷新页面。");
+      });
+  }, [flowId, phone, returnTo, router, prefilledPhone]);
+
+  const passwordError = useMemo(() => {
+    if (!password) {
+      return "";
+    }
+    if (password.length < 8) {
+      return "密码至少 8 位";
+    }
+    if (!/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
+      return "密码需包含字母和数字";
+    }
+    return "";
+  }, [password]);
+
+  const passwordsMatch = password === confirmPassword;
 
   const sendCode = useCallback(async () => {
     if (!flow) {
       return;
     }
-    if (!phone) {
-      setError("请输入手机号。");
+    const normalizedPhone = normalizePhone(localPhone);
+    if (!normalizedPhone) {
+      setError("请输入有效的 11 位手机号。");
       return;
     }
 
-    const body: UpdateRegistrationFlowBody = {
+    setIsSendingCode(true);
+    setError(null);
+
+    const tempUsername = `user_${normalizedPhone.replace('+86', '')}`;
+    const body: UpdateRegistrationFlowBody & {
+      identifier: string;
+      channel: "sms";
+    } = {
       method: CODE_METHOD,
-      traits,
+      traits: {
+        phone: normalizedPhone,
+        username: tempUsername,
+        user_type: DEFAULT_USER_TYPE,
+      },
+      csrf_token: csrfToken,
+      identifier: normalizedPhone,
+      channel: "sms",
     };
 
     try {
       const { data } = await ory.updateRegistrationFlow({
-        flowId: flow.id,
+        flow: flow.id,
         updateRegistrationFlowBody: body,
       });
-      setFlow(data);
+      if (isRegistrationFlow(data)) {
+        setFlow(data);
+      }
       setCodeSent(true);
-      setError(null);
+      setPhone(normalizedPhone);
     } catch (err) {
       console.error("send registration code failed", err);
       handleFlowError(err);
+    } finally {
+      setIsSendingCode(false);
     }
-  }, [flow, handleFlowError, traits, phone]);
+  }, [csrfToken, flow, handleFlowError, localPhone]);
 
   const verifyCode = useCallback(
     async (event: FormEvent) => {
@@ -201,47 +225,134 @@ export function RegistrationScreen() {
       if (!flow) {
         return;
       }
+      const normalizedPhone = phone || normalizePhone(localPhone);
+      if (!normalizedPhone) {
+        setError("请输入有效的 11 位手机号。");
+        return;
+      }
       if (!code) {
         setError("请输入验证码。");
         return;
       }
 
-      const body: UpdateRegistrationFlowBody = {
+      setIsVerifyingCode(true);
+      setError(null);
+
+      const tempUsername = `user_${normalizedPhone.replace('+86', '')}`;
+      const body: UpdateRegistrationFlowBody & {
+        identifier: string;
+        channel: "sms";
+      } = {
         method: CODE_METHOD,
-        traits,
         code,
+        traits: {
+          phone: normalizedPhone,
+          username: tempUsername,
+          user_type: DEFAULT_USER_TYPE,
+        },
         csrf_token: csrfToken,
+        identifier: normalizedPhone,
+        channel: "sms",
       };
 
       try {
         const { data } = await ory.updateRegistrationFlow({
-          flowId: flow.id,
+          flow: flow.id,
           updateRegistrationFlowBody: body,
         });
-        if (data.identity?.id) {
-          afterSuccess();
-          return;
+        if (isRegistrationFlow(data)) {
+          setFlow(data);
+          setStep("password");
+          setPhone(normalizedPhone);
+        } else if (data.identity?.id) {
+          router.push(returnTo || "/");
         }
-        setFlow(data);
       } catch (err) {
         console.error("verify registration code failed", err);
         handleFlowError(err);
+      } finally {
+        setIsVerifyingCode(false);
       }
     },
-    [afterSuccess, code, csrfToken, flow, handleFlowError, traits],
+    [code, csrfToken, flow, handleFlowError, localPhone, phone, returnTo, router],
+  );
+
+  const submitPassword = useCallback(
+    async (event: FormEvent) => {
+      event.preventDefault();
+      if (!flow) {
+        return;
+      }
+      const normalizedPhone = phone || normalizePhone(localPhone);
+      if (!normalizedPhone) {
+        setError("请输入有效的 11 位手机号。");
+        return;
+      }
+      if (!username.trim()) {
+        setError("请输入用户名。");
+        return;
+      }
+      if (!password) {
+        setError("请输入密码。");
+        return;
+      }
+      if (passwordError) {
+        setError(passwordError);
+        return;
+      }
+      if (!passwordsMatch) {
+        setError("两次输入的密码不一致。");
+        return;
+      }
+
+      setIsSubmittingPassword(true);
+      setError(null);
+
+      const body: UpdateRegistrationFlowBody = {
+        method: PASSWORD_METHOD,
+        csrf_token: csrfToken,
+        password,
+        traits: {
+          phone: normalizedPhone,
+          username: username || `user_${normalizedPhone.replace('+86', '')}`,
+          user_type: DEFAULT_USER_TYPE,
+          roles: DEFAULT_ROLES,
+        },
+      };
+
+      try {
+        const { data } = await ory.updateRegistrationFlow({
+          flow: flow.id,
+          updateRegistrationFlowBody: body,
+        });
+        if (data.identity?.id) {
+          router.push(returnTo || "/");
+          return;
+        }
+        if (isRegistrationFlow(data)) {
+          setFlow(data);
+        }
+      } catch (err) {
+        console.error("password registration failed", err);
+        handleFlowError(err);
+      } finally {
+        setIsSubmittingPassword(false);
+      }
+    },
+    [csrfToken, flow, handleFlowError, localPhone, password, passwordError, passwordsMatch, phone, returnTo, router, username],
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 py-12">
+    <div className="flex flex-col gap-6">
       <div className="text-center">
-        <h1 className="text-2xl font-semibold">创建账户</h1>
+        <h1 className="text-2xl font-semibold">注册账户</h1>
         <p className="text-sm text-muted-foreground">
-          设置用户类型、角色和租户信息，完成注册。
+          通过手机号验证并设置密码，完成账号创建。
         </p>
       </div>
 
       {error ? (
-        <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
         </div>
       ) : null}
@@ -254,131 +365,162 @@ export function RegistrationScreen() {
         </div>
       ) : null}
 
-      <section className="rounded-lg border bg-background p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-medium">基础信息</h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <label className="flex flex-col gap-1 text-sm">
-            用户类型
-            <select
-              value={userType}
-              onChange={(event) =>
-                setUserType(event.target.value as "external" | "internal" | "tenant")
-              }
-              className="rounded-md border px-3 py-2"
-            >
-              <option value="external">外部终端用户</option>
-              <option value="internal">公司内部用户</option>
-              <option value="tenant">租户用户</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            租户 ID（可选）
-            <input
-              type="text"
-              value={tenantId}
-              onChange={(event) => setTenantId(event.target.value)}
-              placeholder="tenant-001"
-              className="rounded-md border px-3 py-2"
-            />
-          </label>
+      {step === "code" ? (
+        <form
+          className="flex flex-col gap-4 rounded-lg border bg-background p-6 shadow-sm"
+          onSubmit={verifyCode}
+        >
           <label className="flex flex-col gap-1 text-sm">
             手机号
+            <div className="flex gap-2">
+              <div className="flex items-center rounded-md border px-3 py-2 text-sm font-medium text-muted-foreground">
+                +86
+              </div>
+              <input
+                type="tel"
+                value={localPhone}
+                onChange={(event) => setLocalPhone(event.target.value)}
+                placeholder="请输入 11 位手机号"
+                className="flex-1 rounded-md border px-3 py-2"
+                autoComplete="tel"
+              />
+            </div>
+          </label>
+          <div className="flex items-end gap-2">
+            <label className="flex w-full flex-col gap-1 text-sm">
+              验证码
+              <input
+                type="text"
+                value={code}
+                onChange={(event) => setCode(event.target.value)}
+                placeholder="6 位验证码"
+                className="rounded-md border px-3 py-2"
+                autoComplete="one-time-code"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={sendCode}
+              className="h-10 rounded-md border px-3 text-sm font-medium"
+              disabled={isSendingCode || !localPhone}
+            >
+              {isSendingCode ? "发送中..." : codeSent ? "重新发送" : "发送验证码"}
+            </button>
+          </div>
+          <button
+            type="submit"
+            className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+            disabled={isVerifyingCode}
+          >
+            {isVerifyingCode ? "验证中..." : "验证并继续"}
+          </button>
+        </form>
+      ) : (
+        <form
+          className="flex flex-col gap-4 rounded-lg border bg-background p-6 shadow-sm"
+          onSubmit={submitPassword}
+        >
+          <div className="rounded-md border border-dashed border-border/60 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+            已验证手机号：<span className="font-medium text-foreground">{formatPhone(phone)}</span>
+          </div>
+          <label className="flex flex-col gap-1 text-sm">
+            用户名
             <input
-              type="tel"
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              placeholder="+8613800000000"
+              type="text"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              placeholder="请输入用户名"
               className="rounded-md border px-3 py-2"
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            角色（逗号分隔）
+            设置密码
             <input
-              type="text"
-              value={rolesInput}
-              onChange={(event) => setRolesInput(event.target.value)}
-              placeholder="customer,viewer"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="至少 8 位，包含字母和数字"
               className="rounded-md border px-3 py-2"
+              autoComplete="new-password"
             />
           </label>
-        </div>
-      </section>
-
-      <form
-        className="flex flex-col gap-4 rounded-lg border bg-background p-6 shadow-sm"
-        onSubmit={submitPassword}
-      >
-        <h2 className="text-lg font-medium">设置密码</h2>
-        <label className="flex flex-col gap-1 text-sm">
-          密码
-          <input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="至少 8 位字符"
-            className="rounded-md border px-3 py-2"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          确认密码
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
-            placeholder="再次输入密码"
-            className="rounded-md border px-3 py-2"
-          />
-        </label>
-        <button
-          type="submit"
-          className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-        >
-          使用密码注册
-        </button>
-      </form>
-
-      <form
-        className="flex flex-col gap-4 rounded-lg border bg-background p-6 shadow-sm"
-        onSubmit={verifyCode}
-      >
-        <h2 className="text-lg font-medium">短信验证码注册</h2>
-        <div className="flex items-end gap-2">
-          <label className="flex w-full flex-col gap-1 text-sm">
-            验证码
+          <label className="flex flex-col gap-1 text-sm">
+            确认密码
             <input
-              type="text"
-              value={code}
-              onChange={(event) => setCode(event.target.value)}
-              placeholder="6 位验证码"
+              type="password"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              placeholder="再次输入密码"
               className="rounded-md border px-3 py-2"
+              autoComplete="new-password"
             />
           </label>
+          {passwordError && password && (
+            <p className="text-sm text-red-600">{passwordError}</p>
+          )}
           <button
-            type="button"
-            onClick={sendCode}
-            className="h-10 rounded-md border px-3 text-sm font-medium"
+            type="submit"
+            className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+            disabled={isSubmittingPassword}
           >
-            {codeSent ? "重新发送" : "发送验证码"}
+            {isSubmittingPassword ? "提交中..." : "提交注册"}
           </button>
-        </div>
-        <button
-          type="submit"
-          className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-        >
-          验证并注册
-        </button>
-      </form>
+        </form>
+      )}
     </div>
   );
 }
 
 function extractNodeValue(nodes: UiNode[], name: string): string | undefined {
   for (const node of nodes) {
-    const attrs = node.attributes as Record<string, unknown>;
-    if (attrs?.name === name && attrs?.value !== undefined) {
+    const attrs = node.attributes as UiNodeAttributes;
+    if (isNamedInput(attrs, name) && attrs.value !== undefined) {
       return String(attrs.value);
     }
   }
   return undefined;
 }
 
+type InputNode = Extract<UiNodeAttributes, { node_type: "input" }>;
+
+function isNamedInput(
+  attrs: UiNodeAttributes,
+  name: string,
+): attrs is InputNode {
+  return (
+    attrs.node_type === "input" &&
+    Object.prototype.hasOwnProperty.call(attrs, "name") &&
+    (attrs as InputNode).name === name
+  );
+}
+
+function isRegistrationFlow(
+  data: RegistrationFlow | SuccessfulNativeRegistration,
+): data is RegistrationFlow {
+  return typeof data === "object" && data !== null && "ui" in data;
+}
+
+function normalizePhone(input: string): string | null {
+  const digits = input.replace(/\D/g, "");
+  if (digits.length !== 11 || !digits.startsWith("1")) {
+    return null;
+  }
+  return `+86${digits}`;
+}
+
+function stripCountryCode(e164: string): string {
+  if (e164.startsWith("+86")) {
+    return e164.slice(3);
+  }
+  return e164.replace(/\D/g, "");
+}
+
+function formatPhone(e164: string): string {
+  if (!e164) {
+    return "";
+  }
+  if (e164.startsWith("+86")) {
+    return `+86 ${e164.slice(3)}`;
+  }
+  return e164;
+}

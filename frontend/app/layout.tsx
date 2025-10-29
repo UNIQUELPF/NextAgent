@@ -4,6 +4,7 @@ import "./globals.css";
 
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { SiteHeader } from "@/components/layout/site-header";
+import { HeaderVisibilityProvider } from "@/components/providers/header-visibility";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -32,10 +33,12 @@ export default function RootLayout({
     <html lang="zh-CN" suppressHydrationWarning>
       <body className={`${inter.variable} ${manrope.variable} font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-          <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10">
-            <SiteHeader />
-            <main className="pb-16 pt-10">{children}</main>
-          </div>
+          <HeaderVisibilityProvider>
+            <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10">
+              <SiteHeader />
+              <main className="pb-16 pt-10">{children}</main>
+            </div>
+          </HeaderVisibilityProvider>
         </ThemeProvider>
       </body>
     </html>

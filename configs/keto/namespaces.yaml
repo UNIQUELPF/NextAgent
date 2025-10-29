@@ -1,6 +1,0 @@
-namespaces:
-  - id: 0
-    name: portal:global
-  - id: 1
-    name: portal:tenant
-

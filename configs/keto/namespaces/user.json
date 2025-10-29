@@ -1,0 +1,9 @@
+{
+    "namespace": "user",
+    "id": 1,
+    "relations": {
+        "owner": {},
+        "admin": {},
+        "member": {}
+    }
+}
