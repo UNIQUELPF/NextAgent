@@ -8,6 +8,12 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
     ports:
       - "5432:5432"
     volumes:
@@ -17,8 +23,10 @@ services:
   keto:
     image: oryd/keto:v0.14.0
     depends_on:
-      - keto-migrate
-      - postgres
+      postgres:
+        condition: service_healthy
+      keto-migrate:
+        condition: service_completed_successfully
     volumes:
       - ./configs/keto:/etc/config/keto:ro
     command:
@@ -32,7 +40,8 @@ services:
   keto-migrate:
     image: oryd/keto:v0.14.0
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     volumes:
       - ./configs/keto:/etc/config/keto:ro
     command:
@@ -41,6 +50,20 @@ services:
       - --yes
       - --config
       - /etc/config/keto/keto.yaml
+    restart: on-failure
+
+  portal-migrate:
+    image: migrate/migrate:v4.15.2
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend/internal/storage/migrations:/migrations:ro
+    command:
+      - -path=/migrations
+      - -database
+      - postgres://portal:portal@postgres:5432/portal?sslmode=disable
+      - up
     restart: on-failure
 
   kratos-migrate:
@@ -53,7 +76,8 @@ services:
         BUILD_DATE: "2025-10-28"
     image: nextagentportal-kratos:build
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       DSN: postgres://kratos:kratos@postgres:5432/kratos?sslmode=disable
     command:
@@ -73,8 +97,10 @@ services:
         BUILD_DATE: "2025-10-28"
     image: nextagentportal-kratos:local
     depends_on:
-      - kratos-migrate
-      - sms-mock
+      kratos-migrate:
+        condition: service_completed_successfully
+      sms-mock:
+        condition: service_started
     environment:
       DSN: postgres://kratos:kratos@postgres:5432/kratos?sslmode=disable
       LOG_LEVEL: info
@@ -114,13 +140,21 @@ services:
     build:
       context: ./backend
     depends_on:
-      - keto
-      - sms-mock
+      keto:
+        condition: service_started
+      sms-mock:
+        condition: service_started
+      portal-migrate:
+        condition: service_completed_successfully
     environment:
       PORTAL__KETO__READ_REMOTE: http://keto:4466
       PORTAL__KETO__WRITE_REMOTE: http://keto:4467
-      PORTAL__KETO__NAMESPACE_PREFIX: tenant
+      PORTAL__KETO__NAMESPACE_PREFIX: Tenant
       PORTAL__KETO__MEMBERSHIP_RELATION: member
+      PORTAL__DATABASE__DSN: postgres://portal:portal@postgres:5432/portal?sslmode=disable
+      PORTAL__DATABASE__MAX_OPEN_CONNS: "10"
+      PORTAL__DATABASE__MAX_IDLE_CONNS: "5"
+      PORTAL__DATABASE__CONN_MAX_LIFETIME: 5m
       PORTAL__SERVER__ADDRESS: ":8080"
       PORTAL__KRATOS__WEBHOOK__USERNAME: kratos
       PORTAL__KRATOS__WEBHOOK__PASSWORD: kratos-hook
@@ -137,6 +171,32 @@ services:
       NEXT_PUBLIC_KRATOS_PUBLIC_URL: http://localhost:4456/.ory
     ports:
       - "3000:3000"
+
+  seed-platform-admin:
+    image: alpine:3.20
+    depends_on:
+      kratos:
+        condition: service_started
+      keto:
+        condition: service_started
+      portal-migrate:
+        condition: service_completed_successfully
+    environment:
+      KRATOS_ADMIN_URL: http://kratos:4434
+      KETO_READ_URL: http://keto:4466
+      KETO_WRITE_URL: http://keto:4467
+      PLATFORM_ADMIN_IDENTIFIER: "+8613800000000"
+      PLATFORM_ADMIN_PASSWORD: "ChangeMe123!"
+      PLATFORM_ADMIN_NICKNAME: "平台管理员"
+      PLATFORM_ADMIN_TENANT_ID: ""
+      PLATFORM_ADMIN_ROLES: "platform_admin"
+      PLATFORM_ADMIN_NAMESPACE: "Tenant"
+    volumes:
+      - ./scripts/seed-platform-admin.sh:/usr/local/bin/seed-platform-admin.sh:ro
+    entrypoint:
+      - /bin/sh
+      - /usr/local/bin/seed-platform-admin.sh
+    restart: "no"
 
   sms-mock:
     image: mendhak/http-https-echo:30

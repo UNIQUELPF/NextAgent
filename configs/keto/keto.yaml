@@ -14,4 +14,4 @@ serve:
     port: 4467
 
 namespaces:
-  location: file:///etc/config/keto/namespaces/
+  location: file:///etc/config/keto/opl

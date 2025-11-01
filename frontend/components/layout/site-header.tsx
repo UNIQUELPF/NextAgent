@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, UserRound } from "lucide-react";
+import { Menu, Settings, UserRound } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@ory/client";
 
@@ -12,13 +12,19 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useHeaderVisibility } from "@/components/providers/header-visibility";
 import { ory } from "@/lib/ory";
+import { useCurrentUser } from "@/components/providers/current-user-provider";
+import { hasRole, isInternal } from "@/lib/auth";
+import { ADMIN_ACCESS_ROLES, ADMIN_SECTIONS } from "@/lib/admin-navigation";
 
 export function SiteHeader() {
   const { visible } = useHeaderVisibility();
+  const { user: currentUser, loading: currentUserLoading } = useCurrentUser();
   const [session, setSession] = useState<Session | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const adminMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,19 +51,23 @@ export function SiteHeader() {
   }, [visible]);
 
   useEffect(() => {
-    if (!isMenuOpen) {
+    if (!isMenuOpen && !isAdminMenuOpen) {
       return;
     }
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (isMenuOpen && menuRef.current && !menuRef.current.contains(target)) {
         setIsMenuOpen(false);
+      }
+      if (isAdminMenuOpen && adminMenuRef.current && !adminMenuRef.current.contains(target)) {
+        setIsAdminMenuOpen(false);
       }
     };
     window.addEventListener("click", handleClickOutside);
     return () => {
       window.removeEventListener("click", handleClickOutside);
     };
-  }, [isMenuOpen]);
+  }, [isMenuOpen, isAdminMenuOpen]);
 
   const displayLabel = useMemo(() => {
     if (!session) {
@@ -112,6 +122,16 @@ export function SiteHeader() {
     }
   }, [isLoggingOut]);
 
+  const canAccessAdminMenu = useMemo(() => {
+    if (!currentUser || currentUserLoading) {
+      return false;
+    }
+    if (isInternal(currentUser)) {
+      return true;
+    }
+    return ADMIN_ACCESS_ROLES.some((role) => hasRole(currentUser, role));
+  }, [currentUser, currentUserLoading]);
+
   if (!visible) {
     return null;
   }
@@ -139,6 +159,44 @@ export function SiteHeader() {
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
+          {canAccessAdminMenu ? (
+            <div className="hidden items-center gap-2 md:flex">
+              <div className="relative" ref={adminMenuRef}>
+                <button
+                  type="button"
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium transition-colors",
+                    "hover:bg-muted hover:text-foreground"
+                  )}
+                  onClick={() => setIsAdminMenuOpen((open) => !open)}
+                  aria-expanded={isAdminMenuOpen}
+                  aria-haspopup="menu"
+                  aria-label="管理控制台"
+                >
+                  <Settings className="h-4 w-4" />
+                  <span className="sr-only">管理控制台</span>
+                </button>
+                {isAdminMenuOpen ? (
+                  <div
+                    role="menu"
+                    className="absolute right-0 mt-2 w-48 rounded-md border border-border/80 bg-popover shadow-lg focus:outline-none"
+                  >
+                    {ADMIN_SECTIONS.map((item) => (
+                      <Link
+                        key={item.href}
+                        role="menuitem"
+                        href={item.href}
+                        className="block px-3 py-2 text-sm text-foreground hover:bg-muted"
+                        onClick={() => setIsAdminMenuOpen(false)}
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
           {session ? (
             <div className="hidden items-center gap-2 md:flex">
               <div className="relative" ref={menuRef}>
@@ -212,6 +270,19 @@ export function SiteHeader() {
       </div>
       <div className="border-t border-border/60 bg-background/90 px-4 py-2 lg:hidden">
         <MainNav />
+        {canAccessAdminMenu ? (
+          <div className="mt-2 flex flex-col gap-2">
+            {ADMIN_SECTIONS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="inline-flex w-full items-center justify-start rounded-md border border-border px-3 py-2 text-sm font-medium"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        ) : null}
         {session ? (
           <div className="mt-2 flex flex-col gap-2">
             <Link

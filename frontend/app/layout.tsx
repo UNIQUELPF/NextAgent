@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { Inter, Manrope } from "next/font/google";
 import "./globals.css";
 
-import { ThemeProvider } from "@/components/providers/theme-provider";
 import { SiteHeader } from "@/components/layout/site-header";
+import { CurrentUserProvider } from "@/components/providers/current-user-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 import { HeaderVisibilityProvider } from "@/components/providers/header-visibility";
 
 const inter = Inter({
@@ -34,10 +35,12 @@ export default function RootLayout({
       <body className={`${inter.variable} ${manrope.variable} font-sans`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           <HeaderVisibilityProvider>
-            <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10">
-              <SiteHeader />
-              <main className="pb-16 pt-10">{children}</main>
-            </div>
+            <CurrentUserProvider>
+              <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10">
+                <SiteHeader />
+                <main className="pb-16 pt-10">{children}</main>
+              </div>
+            </CurrentUserProvider>
           </HeaderVisibilityProvider>
         </ThemeProvider>
       </body>

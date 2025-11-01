@@ -24,6 +24,11 @@ type Config struct {
 		Address string `koanf:"address"`
 	} `koanf:"server"`
 
+	Platform struct {
+		TenantID   string `koanf:"tenant_id"`
+		TenantCode string `koanf:"tenant_code"`
+	} `koanf:"platform"`
+
 	Logging struct {
 		Level       string `koanf:"level"`
 		Development bool   `koanf:"development"`
@@ -36,6 +41,13 @@ type Config struct {
 		TenantHeader   string `koanf:"tenant_header"`
 	} `koanf:"oathkeeper"`
 
+	Database struct {
+		DSN             string        `koanf:"dsn"`
+		MaxOpenConns    int           `koanf:"max_open_conns"`
+		MaxIdleConns    int           `koanf:"max_idle_conns"`
+		ConnMaxLifetime time.Duration `koanf:"conn_max_lifetime"`
+	} `koanf:"database"`
+
 	Keto struct {
 		ReadRemote         string        `koanf:"read_remote"`
 		WriteRemote        string        `koanf:"write_remote"`
@@ -46,7 +58,11 @@ type Config struct {
 	} `koanf:"keto"`
 
 	Kratos struct {
-		Webhook struct {
+		AdminURL  string        `koanf:"admin_url"`
+		PublicURL string        `koanf:"public_url"`
+		SchemaID  string        `koanf:"schema_id"`
+		Timeout   time.Duration `koanf:"timeout"`
+		Webhook   struct {
 			Username string `koanf:"username"`
 			Password string `koanf:"password"`
 		} `koanf:"webhook"`

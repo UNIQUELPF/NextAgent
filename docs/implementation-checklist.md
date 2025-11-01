@@ -19,6 +19,7 @@
    - 员工加入 / 移出部门；
    - 角色赋权；
    - 权限校验与错误码。
+5. 已完成：基于 `pgx` + `sqlc` 的 `Tenant` 模块（`backend/internal/storage`），提供 `GET/POST/PUT/DELETE /api/v1/tenants`。
 
 ## 3. Oathkeeper 规则（Regex 模式）
 - `configs/oathkeeper/config.yaml`：
@@ -67,7 +68,7 @@
    - `frontend/lib/auth.ts`：封装登录、登出、`getCurrentUser`（调用 `/api/v1/me`）。
 2. **全局状态**  
    - `useCurrentUser` Hook（React Query 或 Zustand/Context）缓存用户信息；
-   - 保存 `roles`, `permissions`, `tenantId`, `departmentScopes` 等。
+   - 保存 `roles`, `permissions`, `tenantId`, `groupScopes` 等。
 3. **权限工具**  
    - `frontend/lib/rbac.ts`：提供 `hasPermission(code)`、`hasRole(role)`。
    - `components/RBAC.tsx`：根据权限包裹按钮/区域；
@@ -85,7 +86,7 @@
 ## 5. 页面路由与数据
 - 在 `frontend/app/**` 页面：
   - Layout 中使用 `useCurrentUser`，在 `loading` 状态下显示 Skeleton；
-  - 每个页面声明所需权限（如 `export const requiredPermissions = ['department:view'];`），在 Layout 或中间件检查。
+  - 每个页面声明所需权限（如 `export const requiredPermissions = ['group:view'];`），在 Layout 或中间件检查。
 - 组织树 / 员工列表页面：
   - 向后台带上 `tenantId`，懒加载大数据量；
   - 使用虚拟滚动优化性能（如 `react-virtual`）。
@@ -97,7 +98,7 @@
 - 如尚未创建 `Tenant` 表：
   - 在数据库迁移中添加 `Tenant(id, code, name, status, contact_info, settings, created_at, ...)`;
   - 后端仓储层（`backend/internal/repository`）统一使用 `tenant_id`。
-- 若需要后台管理界面，新增 `frontend/app/admin/tenants` 相关页面。
+- 已完成：`frontend/components/admin/tenant-management.tsx` 通过 `GET /api/v1/tenants` 渲染真实数据；后续可继续扩展“新建 / 导入 / 编辑”操作、角色绑定等交互。
 
 ## 7. 测试计划
 - **集成测试**：

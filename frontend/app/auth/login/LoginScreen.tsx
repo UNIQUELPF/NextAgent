@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { UpdateLoginFlowBody } from "@ory/client";
 
 import { ory } from "@/lib/ory";
+import { useCurrentUser } from "@/components/providers/current-user-provider";
 
 import type {
   UiNode,
@@ -19,6 +20,7 @@ const CODE_METHOD = "code";
 export function LoginScreen() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user, loading } = useCurrentUser();
   const [flow, setFlow] = useState<LoginFlow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [phone, setPhone] = useState(""); // 存储 E.164，如 +8613800000000
@@ -33,6 +35,15 @@ export function LoginScreen() {
   const flowId = searchParams.get("flow");
   const returnTo = searchParams.get("return_to") ?? "/";
   const prefilledPhone = searchParams.get("phone");
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+    if (user) {
+      router.replace(returnTo || "/");
+    }
+  }, [loading, user, returnTo, router]);
 
   const redirectToRegistration = useCallback(
     (phoneNumber: string) => {
@@ -101,6 +112,10 @@ export function LoginScreen() {
       return;
     }
 
+    if (loading || user) {
+      return;
+    }
+
     if (!flowId) {
       ory
         .createBrowserLoginFlow({ returnTo })
@@ -137,7 +152,7 @@ export function LoginScreen() {
         console.error("getLoginFlow failed", err);
         setError("登录流程已失效，请刷新页面。");
       });
-  }, [flowId, phone, returnTo, router]);
+  }, [flowId, phone, returnTo, router, loading, user]);
 
   const handleFlowError = useCallback(
     (

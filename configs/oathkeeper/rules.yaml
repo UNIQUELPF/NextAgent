@@ -18,10 +18,31 @@
     url: http://kratos:4433
     strip_path: /.ory
 
+- id: backend-me
+  priority: 210
+  match:
+    url: http://localhost:4456/api/v1/me
+    methods:
+      - GET
+  authenticators:
+    - handler: cookie_session
+  authorizer:
+    handler: allow
+  mutators:
+    - handler: header
+      config:
+        headers:
+          X-Session-Subject: "{{ .Subject }}"
+          X-Session-User-Type: "{{ with (index .Extra \"user_type\") }}{{ . }}{{ end }}"
+          X-Session-Roles: "{{ with (index .Extra \"roles\") }}{{ join \",\" . }}{{ end }}"
+          X-Tenant-Id: "{{ with (index .Extra \"tenant_id\") }}{{ . }}{{ end }}"
+  upstream:
+    url: http://backend:8080
+
 - id: backend-api
   priority: 200
   match:
-    url: http://localhost:4456/<api/.*>
+    url: http://localhost:4456/<api/(?!v1/me$).+>
     methods:
       - GET
       - POST
@@ -36,17 +57,21 @@
       remote: http://backend:8080/api/v1/authorize
       payload: |
         {
-          "object": "{{ print .MatchContext.Request.URL.Path }}",
-          "action": "{{ print .MatchContext.Request.Method }}"
+          "object": "{{ print .MatchContext.URL.Path }}",
+          "action": "{{ print .MatchContext.Method }}",
+          "subject": "{{ .Subject }}",
+          "user_type": "{{ with (index .Extra "user_type") }}{{ . }}{{ end }}",
+          "tenant_id": "{{ with (index .Extra "tenant_id") }}{{ . }}{{ end }}",
+          "roles": "{{ with (index .Extra "roles") }}{{ join "," . }}{{ end }}"
         }
   mutators:
     - handler: header
       config:
         headers:
-          X-Session-Subject: "{{ print .Session.Subject }}"
-          X-Session-User-Type: "{{ index .Session.Identity.Traits \"user_type\" }}"
-          X-Session-Roles: "{{ with (index .Session.Identity.Traits \"roles\") }}{{ join \",\" . }}{{ end }}"
-          X-Tenant-Id: "{{ with (index .Session.Identity.Traits \"tenant_id\") }}{{ . }}{{ end }}"
+          X-Session-Subject: "{{ .Subject }}"
+          X-Session-User-Type: "{{ with (index .Extra \"user_type\") }}{{ . }}{{ end }}"
+          X-Session-Roles: "{{ with (index .Extra \"roles\") }}{{ join \",\" . }}{{ end }}"
+          X-Tenant-Id: "{{ with (index .Extra \"tenant_id\") }}{{ . }}{{ end }}"
   upstream:
     url: http://backend:8080
 

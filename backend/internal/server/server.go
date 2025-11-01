@@ -5,29 +5,40 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"path"
+	"regexp"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/laofa009/next-agent-portal/backend/internal/config"
 	"github.com/laofa009/next-agent-portal/backend/internal/keto"
+	"github.com/laofa009/next-agent-portal/backend/internal/kratos"
 	"github.com/laofa009/next-agent-portal/backend/internal/middleware"
+	"github.com/laofa009/next-agent-portal/backend/internal/storage"
 )
 
 // Server bundles the HTTP router and supporting services.
 type Server struct {
-	router          *gin.Engine
-	cfg             *config.Config
-	logger          *zap.Logger
-	ketoClient      *keto.Client
-	namespacePrefix string
-	webhookUser     string
-	webhookPass     string
+	router           *gin.Engine
+	cfg              *config.Config
+	logger           *zap.Logger
+	ketoClient       *keto.Client
+	kratosClient     *kratos.Client
+	tenantRepo       *storage.TenantRepository
+	groupRepo        *storage.GroupRepository
+	roleRepo         *storage.RoleRepository
+	permissionRepo   *storage.PermissionRepository
+	platformTenantID uuid.UUID
+	namespacePrefix  string
+	webhookUser      string
+	webhookPass      string
 }
 
 // New constructs the HTTP server with middleware and routes.
-func New(cfg *config.Config, logger *zap.Logger, ketoClient *keto.Client) *Server {
+func New(cfg *config.Config, logger *zap.Logger, ketoClient *keto.Client, kratosClient *kratos.Client, tenantRepo *storage.TenantRepository, groupRepo *storage.GroupRepository, roleRepo *storage.RoleRepository, permissionRepo *storage.PermissionRepository) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 
@@ -40,14 +51,25 @@ func New(cfg *config.Config, logger *zap.Logger, ketoClient *keto.Client) *Serve
 		cfg.Oathkeeper.TenantHeader,
 	))
 
+	platformTenantID, err := uuid.Parse(strings.TrimSpace(cfg.Platform.TenantID))
+	if err != nil {
+		logger.Fatal("invalid platform tenant id", zap.Error(err), zap.String("tenant_id", cfg.Platform.TenantID))
+	}
+
 	s := &Server{
-		router:          router,
-		cfg:             cfg,
-		logger:          logger,
-		ketoClient:      ketoClient,
-		namespacePrefix: cfg.Keto.NamespacePrefix,
-		webhookUser:     cfg.Kratos.Webhook.Username,
-		webhookPass:     cfg.Kratos.Webhook.Password,
+		router:           router,
+		cfg:              cfg,
+		logger:           logger,
+		ketoClient:       ketoClient,
+		kratosClient:     kratosClient,
+		tenantRepo:       tenantRepo,
+		groupRepo:        groupRepo,
+		roleRepo:         roleRepo,
+		permissionRepo:   permissionRepo,
+		platformTenantID: platformTenantID,
+		namespacePrefix:  cfg.Keto.NamespacePrefix,
+		webhookUser:      cfg.Kratos.Webhook.Username,
+		webhookPass:      cfg.Kratos.Webhook.Password,
 	}
 
 	s.registerRoutes()
@@ -85,26 +107,47 @@ func (s *Server) registerRoutes() {
 			Namespace string `json:"namespace"`
 			Object    string `json:"object" binding:"required"`
 			Action    string `json:"action" binding:"required"`
+			Subject   string `json:"subject"`
+			UserType  string `json:"user_type"`
+			TenantID  string `json:"tenant_id"`
+			RolesCSV  string `json:"roles"`
 		}
 		if err := c.ShouldBindJSON(&payload); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			payload.Object = c.Request.URL.Path
+			payload.Action = c.Request.Method
+			payload.Namespace = ""
+		}
+
+		s.logger.Info("authorize request",
+			zap.String("object", payload.Object),
+			zap.String("action", payload.Action),
+		)
+
+		if payload.Object == "/api/v1/me" && (payload.Action == "" || strings.EqualFold(payload.Action, http.MethodGet)) {
+			c.JSON(http.StatusOK, gin.H{"allowed": true})
 			return
 		}
 
 		identity := middleware.IdentityFromContext(c)
 		if identity.Subject == "" {
+			identity.Subject = strings.TrimSpace(payload.Subject)
+			identity.UserType = strings.TrimSpace(payload.UserType)
+			identity.TenantID = strings.TrimSpace(payload.TenantID)
+			identity.Roles = parseRolesCSV(payload.RolesCSV)
+		}
+		if identity.Subject == "" {
 			c.JSON(http.StatusForbidden, gin.H{"allowed": false, "reason": "missing subject"})
 			return
 		}
 
-		namespace := fmt.Sprintf("%s:global", s.namespacePrefix)
-		if identity.TenantID != "" {
-			namespace = fmt.Sprintf("%s:%s", s.namespacePrefix, identity.TenantID)
-		} else if payload.Namespace != "" {
-			namespace = payload.Namespace
+		if isPlatformAdmin(identity) {
+			c.JSON(http.StatusOK, gin.H{"allowed": true})
+			return
 		}
 
-		ok, err := s.ketoClient.Check(c.Request.Context(), namespace, payload.Object, payload.Action, identity.Subject)
+		namespace, object := resolveNamespaceAndObject(s.namespacePrefix, identity.TenantID, payload.Namespace, payload.Object)
+
+		ok, err := s.ketoClient.Check(c.Request.Context(), namespace, object, payload.Action, identity.Subject)
 		if err != nil {
 			s.logger.Error("keto check failed", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "authorization service unavailable"})
@@ -118,6 +161,97 @@ func (s *Server) registerRoutes() {
 		s.requireWebhookAuth(),
 		s.handleRegistrationHook,
 	)
+
+	s.registerTenantRoutes(v1)
+	s.registerGroupRoutes(v1)
+	s.registerRoleRoutes(v1)
+	s.registerPermissionRoutes(v1)
+}
+
+func resolveNamespaceAndObject(prefix, tenantID, overrideNamespace, object string) (string, string) {
+	ns := prefix
+	if ns == "" {
+		ns = "Tenant"
+	}
+
+	if overrideNamespace != "" {
+		return overrideNamespace, normalizeObject(object)
+	}
+
+	scope := tenantID
+	if scope == "" {
+		scope = "global"
+	}
+
+	finalObject := normalizeObject(object)
+
+	return ns, fmt.Sprintf("%s:%s", scopeToken(scope), finalObject)
+}
+
+var uuidSegmentRegex = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+func normalizeObject(object string) string {
+	if object == "" {
+		return "/"
+	}
+	clean := strings.TrimPrefix(path.Clean("/"+object), "/")
+	if clean == "" {
+		return "/"
+	}
+
+	parts := strings.Split(clean, "/")
+	for i, segment := range parts {
+		if uuidSegmentRegex.MatchString(segment) {
+			parts[i] = ":uuid"
+		}
+	}
+
+	return strings.Join(parts, "/")
+}
+
+func isPlatformAdmin(ctx *middleware.IdentityContext) bool {
+	if ctx == nil {
+		return false
+	}
+	for _, role := range ctx.Roles {
+		switch strings.ToLower(role) {
+		case "platform_admin", "platform-admin":
+			return true
+		}
+	}
+	return false
+}
+
+func scopeToken(scope string) string {
+	if scope == "" {
+		return "global"
+	}
+	return scope
+}
+
+func parseRolesCSV(raw string) []string {
+	if raw == "" {
+		return []string{}
+	}
+
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	seen := make(map[string]struct{})
+
+	for _, part := range parts {
+		normalized := strings.TrimSpace(part)
+		if normalized == "" {
+			continue
+		}
+		key := strings.ToLower(normalized)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, normalized)
+	}
+
+	return out
 }
 
 func (s *Server) requireWebhookAuth() gin.HandlerFunc {

@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { UpdateRegistrationFlowBody } from "@ory/client";
 
 import { ory } from "@/lib/ory";
+import { useCurrentUser } from "@/components/providers/current-user-provider";
 
 import type {
   RegistrationFlow,
@@ -21,6 +22,7 @@ const DEFAULT_ROLES = ["customer"];
 export function RegistrationScreen() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user, loading } = useCurrentUser();
 
   const [flow, setFlow] = useState<RegistrationFlow | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +42,15 @@ export function RegistrationScreen() {
   const flowId = searchParams.get("flow");
   const returnTo = searchParams.get("return_to") ?? "/";
   const prefilledPhone = searchParams.get("phone");
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+    if (user) {
+      router.replace(returnTo || "/");
+    }
+  }, [loading, user, returnTo, router]);
 
   useEffect(() => {
     if (prefilledPhone) {
@@ -121,6 +132,10 @@ export function RegistrationScreen() {
       return;
     }
 
+    if (loading || user) {
+      return;
+    }
+
     if (!flowId) {
       ory
         .createBrowserRegistrationFlow({ returnTo })
@@ -164,7 +179,7 @@ export function RegistrationScreen() {
         console.error("getRegistrationFlow failed", err);
         setError("注册流程已失效，请刷新页面。");
       });
-  }, [flowId, phone, returnTo, router, prefilledPhone]);
+  }, [flowId, phone, returnTo, router, prefilledPhone, loading, user]);
 
   const passwordError = useMemo(() => {
     if (!password) {

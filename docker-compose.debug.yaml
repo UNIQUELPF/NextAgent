@@ -1,0 +1,31 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.debug
+    environment:
+      PORTAL__SERVER__ADDRESS: ":8080"
+      PORTAL__KETO__READ_REMOTE: http://keto:4466
+      PORTAL__KETO__WRITE_REMOTE: http://keto:4467
+      PORTAL__KETO__NAMESPACE_PREFIX: Tenant
+      PORTAL__KETO__MEMBERSHIP_RELATION: member
+      PORTAL__DATABASE__DSN: postgres://portal:portal@postgres:5432/portal?sslmode=disable
+      PORTAL__DATABASE__MAX_OPEN_CONNS: "10"
+      PORTAL__DATABASE__MAX_IDLE_CONNS: "5"
+      PORTAL__DATABASE__CONN_MAX_LIFETIME: 5m
+      PORTAL__KRATOS__WEBHOOK__USERNAME: kratos
+      PORTAL__KRATOS__WEBHOOK__PASSWORD: kratos-hook
+    volumes:
+      - ./backend/configs:/etc/portal/configs:ro
+    ports:
+      - "8080:8080"
+      - "2345:2345"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keto:
+        condition: service_started
+      sms-mock:
+        condition: service_started

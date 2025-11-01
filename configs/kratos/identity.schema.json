@@ -43,8 +43,7 @@
           "type": "string",
           "enum": [
             "external",
-            "internal",
-            "tenant"
+            "internal"
           ]
         },
         "tenant_id": {

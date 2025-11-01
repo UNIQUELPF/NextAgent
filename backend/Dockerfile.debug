@@ -1,0 +1,15 @@
+FROM golang:1.23
+
+WORKDIR /app
+
+# Install Delve ahead of time so the image only needs to compile the app at runtime.
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+
+# Keep source code inside the container for debugging; no build happens during image creation.
+COPY . .
+
+ENV PORTAL__CONFIG__FILE=/etc/portal/configs/app.yaml
+
+EXPOSE 8080 2345
+
+ENTRYPOINT ["/bin/sh", "-c", "exec dlv debug ./cmd/portal --build-flags='-gcflags=all=-N -gcflags=all=-l' --headless --listen=:2345 --api-version=2 --accept-multiclient --continue --log"]
