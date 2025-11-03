@@ -21,8 +21,8 @@ oathkeeper:
   user_type_header: X-Session-User-Type
   tenant_header: X-Tenant-Id
 keto:
-  read_remote: http://localhost:4466
-  write_remote: http://localhost:4467
+  read_remote: http://keto:4466
+  write_remote: http://keto:4467
   namespace_prefix: Tenant
   permission_relation: can
   membership_relation: member

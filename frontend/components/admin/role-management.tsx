@@ -309,7 +309,9 @@ export function RoleManagement() {
         </div>
 
         <aside className="space-y-4 rounded-lg border border-border/70 bg-background/70 p-4 text-sm">
-          <div className="text-xs text-muted-foreground">共 {total} 条记录</div>
+          <div className="text-xs text-muted-foreground">
+            权限字典共 {permissionDict.length} 条记录
+          </div>
           <div>
             <h3 className="text-sm font-medium text-foreground">权限字典</h3>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -343,26 +345,59 @@ export function RoleManagement() {
       </div>
 
       {showRoleForm ? (
-        <RoleForm
-          mode={formMode}
-          role={formMode === "edit" ? activeRole : null}
-          permissions={permissionDict}
-          onCancel={() => {
-            setShowRoleForm(false);
-            setActiveRole(null);
-          }}
-          onSuccess={handleFormSuccess}
-        />
+        <Overlay onClose={() => { setShowRoleForm(false); setActiveRole(null); }}>
+          <RoleForm
+            mode={formMode}
+            role={formMode === "edit" ? activeRole : null}
+            permissions={permissionDict}
+            onCancel={() => {
+              setShowRoleForm(false);
+              setActiveRole(null);
+            }}
+            onSuccess={handleFormSuccess}
+          />
+        </Overlay>
       ) : null}
 
       {memberRole ? (
-        <RoleMemberPanel
-          role={memberRole}
-          onClose={() => setMemberRole(null)}
-          onChanged={handleMembersChanged}
-        />
+        <Overlay onClose={() => setMemberRole(null)}>
+          <RoleMemberPanel role={memberRole} onClose={() => setMemberRole(null)} onChanged={handleMembersChanged} />
+        </Overlay>
       ) : null}
     </section>
+  );
+}
+
+function Overlay({
+  children,
+  onClose,
+}: {
+  children: React.ReactNode;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
+      <div className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg border border-border/70 bg-background shadow-xl">
+        <button
+          type="button"
+          className="absolute right-4 top-4 rounded-full border border-border/60 bg-background px-2 py-1 text-xs text-muted-foreground hover:bg-border/40"
+          onClick={onClose}
+        >
+          关闭
+        </button>
+        <div className="p-6 pt-12">{children}</div>
+      </div>
+    </div>
   );
 }
 

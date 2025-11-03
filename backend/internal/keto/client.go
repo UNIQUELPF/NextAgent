@@ -73,15 +73,15 @@ func NewClient(opts Options, logger *zap.Logger) (*Client, error) {
 }
 
 type checkRequest struct {
-	Namespace string        `json:"namespace"`
-	Object    string        `json:"object"`
-	Relation  string        `json:"relation"`
-	Subject   subjectStruct `json:"subject"`
+	Namespace string `json:"namespace"`
+	Object    string `json:"object"`
+	Relation  string `json:"relation"`
+	SubjectID string `json:"subject_id"`
 }
 
-type subjectStruct struct {
-	ID string `json:"id"`
-}
+// type subjectStruct struct {
+// 	ID string `json:"id"`
+// }
 
 type checkResponse struct {
 	Allowed bool `json:"allowed"`
@@ -107,9 +107,7 @@ func (c *Client) Check(ctx context.Context, namespace, object, action, subject s
 		Namespace: namespace,
 		Object:    object,
 		Relation:  c.resolveRelation(action),
-		Subject: subjectStruct{
-			ID: subject,
-		},
+		SubjectID: subject,
 	}
 
 	body, err := json.Marshal(payload)
@@ -135,10 +133,8 @@ func (c *Client) Check(ctx context.Context, namespace, object, action, subject s
 	if resp.StatusCode >= 500 {
 		return false, fmt.Errorf("keto server error: %s", resp.Status)
 	}
-	if resp.StatusCode == http.StatusNotFound {
-		return false, nil
-	}
-	if resp.StatusCode != http.StatusOK {
+
+	if (resp.StatusCode != http.StatusOK) && (resp.StatusCode != http.StatusForbidden) {
 		return false, fmt.Errorf("unexpected keto status: %s", resp.Status)
 	}
 
@@ -181,7 +177,7 @@ func (c *Client) AssignRole(ctx context.Context, tenantID, role, subject string)
 	}
 
 	reqURL := *c.writeEndpoint
-	reqURL.Path = path.Join(reqURL.Path, "/relation-tuples")
+	reqURL.Path = path.Join(reqURL.Path, "/admin/relation-tuples")
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, reqURL.String(), bytes.NewReader(body))
 	if err != nil {
@@ -221,7 +217,7 @@ func (c *Client) RemoveRole(ctx context.Context, tenantID, role, subject string)
 	object := fmt.Sprintf("%s:%s", scope, role)
 
 	reqURL := *c.writeEndpoint
-	reqURL.Path = path.Join(reqURL.Path, "/relation-tuples")
+	reqURL.Path = path.Join(reqURL.Path, "/admin/relation-tuples")
 
 	query := reqURL.Query()
 	query.Set("namespace", ns)
@@ -266,7 +262,7 @@ func (c *Client) AssignGroupMember(ctx context.Context, tenantID, groupID, subje
 	}
 
 	reqURL := *c.writeEndpoint
-	reqURL.Path = path.Join(reqURL.Path, "/relation-tuples")
+	reqURL.Path = path.Join(reqURL.Path, "/admin/relation-tuples")
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, reqURL.String(), bytes.NewReader(body))
 	if err != nil {
@@ -293,7 +289,7 @@ func (c *Client) RemoveGroupMember(ctx context.Context, tenantID, groupID, subje
 	}
 
 	reqURL := *c.writeEndpoint
-	reqURL.Path = path.Join(reqURL.Path, "/relation-tuples")
+	reqURL.Path = path.Join(reqURL.Path, "/admin/relation-tuples")
 
 	query := reqURL.Query()
 	query.Set("namespace", "Group")
@@ -334,7 +330,7 @@ func (c *Client) membershipRelation() string {
 	if c.membership != "" {
 		return c.membership
 	}
-	return "member"
+	return "members"
 }
 
 // MembershipRelation returns the relation name used for role membership tuples.
@@ -361,7 +357,7 @@ func (c *Client) UpsertSubjectSetRelation(ctx context.Context, namespace, object
 	}
 
 	reqURL := *c.writeEndpoint
-	reqURL.Path = path.Join(reqURL.Path, "/relation-tuples")
+	reqURL.Path = path.Join(reqURL.Path, "/admin/relation-tuples")
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, reqURL.String(), bytes.NewReader(body))
 	if err != nil {
@@ -389,7 +385,7 @@ func (c *Client) DeleteSubjectSetRelation(ctx context.Context, namespace, object
 	}
 
 	reqURL := *c.writeEndpoint
-	reqURL.Path = path.Join(reqURL.Path, "/relation-tuples")
+	reqURL.Path = path.Join(reqURL.Path, "/admin/relation-tuples")
 
 	query := reqURL.Query()
 	query.Set("namespace", namespace)
