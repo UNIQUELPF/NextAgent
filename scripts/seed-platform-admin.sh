@@ -56,8 +56,8 @@ main() {
   local encoded_identifier identity_id
   encoded_identifier=$(urlencode "$ADMIN_IDENTIFIER")
 
-  identity_id=$(curl -sf "$KRATOS_ADMIN_URL/admin/identities?per_page=1&credentials_identifier=$encoded_identifier" \
-    | jq -r '.[0].id // empty')
+  identity_id=$(curl -sf "$KRATOS_ADMIN_URL/admin/identities?per_page=1&credentials_identifier=$encoded_identifier" |
+    jq -r '.[0].id // empty')
 
   if [ -z "$identity_id" ]; then
     info "platform admin identity not found, creating"
@@ -125,7 +125,7 @@ main() {
       -d "{
         \"namespace\": \"$ADMIN_NAMESPACE\",
         \"object\": \"global:platform_admin\",
-        \"relation\": \"member\",
+        \"relation\": \"members\",
         \"subject_id\": \"$identity_id\"
       }" >/dev/null
     info "Keto relation created"

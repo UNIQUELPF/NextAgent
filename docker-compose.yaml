@@ -150,7 +150,7 @@ services:
       PORTAL__KETO__READ_REMOTE: http://keto:4466
       PORTAL__KETO__WRITE_REMOTE: http://keto:4467
       PORTAL__KETO__NAMESPACE_PREFIX: Tenant
-      PORTAL__KETO__MEMBERSHIP_RELATION: member
+      PORTAL__KETO__MEMBERSHIP_RELATION: members
       PORTAL__DATABASE__DSN: postgres://portal:portal@postgres:5432/portal?sslmode=disable
       PORTAL__DATABASE__MAX_OPEN_CONNS: "10"
       PORTAL__DATABASE__MAX_IDLE_CONNS: "5"
