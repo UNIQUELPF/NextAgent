@@ -1,0 +1,122 @@
+version: v0.13.0
+
+dsn: postgres://kratos:kratos@postgres:5432/kratos?sslmode=disable&max_conns=20
+
+log:
+  level: info
+  format: json
+
+serve:
+  public:
+    base_url: http://47.100.104.230/.ory/
+    port: 4433
+    cors:
+      enabled: true
+      allowed_origins:
+        - http://47.100.104.230
+      allowed_methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      allowed_headers:
+        - Authorization
+        - Content-Type
+        - X-Requested-With
+        - Accept
+      exposed_headers:
+        - Content-Type
+      allow_credentials: true
+  admin:
+    base_url: http://kratos:4434/
+    port: 4434
+
+secrets:
+  cookie:
+    - please-change-this-cookie-secret
+  cipher:
+    - 3HCf98UbOFiF7dR79Spl6HpwQYfLO1LF
+
+identity:
+  default_schema_id: portal
+  schemas:
+    - id: portal
+      url: file:///etc/config/kratos/identity.schema.json
+
+selfservice:
+  default_browser_return_url: http://47.100.104.230/
+  allowed_return_urls:
+    - http://47.100.104.230
+    - http://47.100.104.230/*
+  flows:
+    login:
+      ui_url: http://47.100.104.230/auth/login
+      lifespan: 10m
+    registration:
+      ui_url: http://47.100.104.230/auth/register
+      lifespan: 10m
+      after:
+        code:
+          hooks:
+            - hook: session
+            - hook: web_hook
+              config:
+                url: http://backend:8080/api/internal/hooks/kratos/registration
+                method: POST
+                body: base64://ZnVuY3Rpb24oY3R4KSB7CiAgaWRlbnRpdHk6IGN0eC5pZGVudGl0eSwKfQo=
+                headers:
+                  Content-Type: application/json
+                  Authorization: Basic a3JhdG9zOmtyYXRvcy1ob29r
+    settings:
+      ui_url: http://47.100.104.230/account/settings
+    verification:
+      enabled: true
+      use: code
+      ui_url: http://47.100.104.230/auth/verify
+    recovery:
+      enabled: true
+      ui_url: http://47.100.104.230/auth/recover
+      use: code
+  methods:
+    password:
+      enabled: true
+    code:
+      enabled: true
+      config:
+        lifespan: 5m
+        usage: login_registration_recovery
+    link:
+      enabled: false
+
+courier:
+  sms:
+    enabled: true
+    from: "+8610000000000"
+  template_override_path: /etc/config/kratos/courier/templates
+  channels:
+    - id: sms
+      type: http
+      request_config:
+        url: http://sms-mock:8080/messages
+        method: POST
+        body: base64://ZnVuY3Rpb24oY3R4KSB7CgogIFRvOiBjdHgucmVjaXBpZW50LAogIEJvZHk6IGN0eC5ib2R5LAoKfQ==
+        headers:
+          Content-Type: application/json
+
+session:
+  cookie:
+    same_site: Lax
+  lifespan: 720h
+
+feature_flags:
+  use_continue_with_transitions: true
+
+hashers:
+  argon2:
+    parallelism: 2
+    memory: 128MB
+    iterations: 2
+    salt_length: 16
+    key_length: 32

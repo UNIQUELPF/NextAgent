@@ -1,0 +1,327 @@
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: ""
+  publicProtocol: http
+  publicHost: 47.100.104.230
+
+postgres:
+  enabled: true
+  image: postgres:15
+  replicaCount: 1
+  username: postgres
+  password: postgres
+  database: postgres
+  resources: {}
+  persistence:
+    enabled: true
+    accessModes: ["ReadWriteOnce"]
+    size: 40Gi
+  nodeSelector:
+    role: db
+  tolerations:
+    - key: "db"
+      operator: "Equal"
+      value: "true"
+      effect: "NoSchedule"
+  affinity: {}
+
+ingress:
+  enabled: true
+  className: ""
+  annotations: {}
+  hosts:
+    - host: ""
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+kratos:
+  image: laofa009/qbb:kratos-1106
+  replicaCount: 1
+  admin:
+    servicePort: 4434
+    serviceType: ClusterIP
+  public:
+    servicePort: 4433
+    serviceType: ClusterIP
+  secrets:
+    cookie:
+      - please-change-this-cookie-secret
+    cipher:
+      - 3HCf98UbOFiF7dR79Spl6HpwQYfLO1LF
+  courier:
+    smsUrl: http://sms-mock:8080/messages
+    from: "+8610000000000"
+  config: ""
+  identitySchema: ""
+
+keto:
+  image: oryd/keto:v0.14.0
+  replicaCount: 1
+  config: ""
+  opl: ""
+
+oathkeeper:
+  image: oryd/oathkeeper:v0.40.9
+  replicaCount: 1
+  config: |-
+    log:
+      level: info
+      format: json
+
+    serve:
+      proxy:
+        host: 0.0.0.0
+        port: 4456
+      api:
+        host: 0.0.0.0
+        port: 4457
+
+    access_rules:
+      repositories:
+        - file:///etc/config/oathkeeper/rules.yaml
+      matching_strategy: regexp
+
+    authenticators:
+      anonymous:
+        enabled: true
+      cookie_session:
+        enabled: true
+        config:
+          check_session_url: {{ include "portal.kratosPublicURL" . }}/sessions/whoami
+          preserve_path: true
+          subject_from: identity.id
+          extra_from: identity.traits
+          only:
+            - ory_kratos_session
+
+    authorizers:
+      allow:
+        enabled: true
+      remote_json:
+        enabled: true
+        config:
+          remote: {{ include "portal.backendInternalURL" . }}/api/v1/authorize
+          payload: |
+            {}
+
+    errors:
+      fallback:
+        - json
+      handlers:
+        json:
+          enabled: true
+          config:
+            verbose: true
+
+    mutators:
+      noop:
+        enabled: true
+      header:
+        enabled: true
+        config:
+          headers: {}
+  rules: |-
+    - id: kratos-public
+      priority: 300
+      match:
+        url: {{ include "portal.publicURL" . }}/<\.ory/.*>
+        methods:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+      authenticators:
+        - handler: anonymous
+      authorizer:
+        handler: allow
+      mutators:
+        - handler: noop
+      upstream:
+        url: {{ include "portal.kratosPublicURL" . }}
+        strip_path: /.ory
+
+    - id: backend-me
+      priority: 210
+      match:
+        url: {{ include "portal.publicURL" . }}/api/v1/me
+        methods:
+          - GET
+      authenticators:
+        - handler: cookie_session
+      authorizer:
+        handler: allow
+      mutators:
+        - handler: header
+          config:
+            headers:
+              X-Session-Subject: "{{ `{{ .Subject }}` }}"
+              X-Session-User-Type: "{{ `{{ with (index .Extra \"user_type\") }}{{ . }}{{ end }}` }}"
+              X-Session-Roles: "{{ `{{ with (index .Extra \"roles\") }}{{ join \",\" . }}{{ end }}` }}"
+              X-Tenant-Id: "{{ `{{ with (index .Extra \"tenant_id\") }}{{ . }}{{ end }}` }}"
+      upstream:
+        url: {{ include "portal.backendInternalURL" . }}
+
+    - id: backend-api
+      priority: 200
+      match:
+        url: {{ include "portal.publicURL" . }}/<api/(?!v1/me$).+>
+        methods:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+      authenticators:
+        - handler: cookie_session
+      authorizer:
+        handler: remote_json
+        config:
+          remote: {{ include "portal.backendInternalURL" . }}/api/v1/authorize
+          payload: |
+            {
+              "object": "{{ `{{ print .MatchContext.URL.Path }}` }}",
+              "action": "{{ `{{ print .MatchContext.Method }}` }}",
+              "subject": "{{ `{{ .Subject }}` }}",
+              "user_type": "{{ `{{ with (index .Extra \"user_type\") }}{{ . }}{{ end }}` }}",
+              "tenant_id": "{{ `{{ with (index .Extra \"tenant_id\") }}{{ . }}{{ end }}` }}",
+              "roles": "{{ `{{ with (index .Extra \"roles\") }}{{ join \",\" . }}{{ end }}` }}"
+            }
+      mutators:
+        - handler: header
+          config:
+            headers:
+              X-Session-Subject: "{{ `{{ .Subject }}` }}"
+              X-Session-User-Type: "{{ `{{ with (index .Extra \"user_type\") }}{{ . }}{{ end }}` }}"
+              X-Session-Roles: "{{ `{{ with (index .Extra \"roles\") }}{{ join \",\" . }}{{ end }}` }}"
+              X-Tenant-Id: "{{ `{{ with (index .Extra \"tenant_id\") }}{{ . }}{{ end }}` }}"
+      upstream:
+        url: {{ include "portal.backendInternalURL" . }}
+
+    - id: front-assets
+      priority: 150
+      match:
+        url: {{ include "portal.publicURL" . }}/<_next/.*>
+        methods:
+          - GET
+          - HEAD
+          - OPTIONS
+      authenticators:
+        - handler: anonymous
+      authorizer:
+        handler: allow
+      mutators:
+        - handler: noop
+      upstream:
+        url: {{ include "portal.frontendInternalURL" . }}
+
+    - id: front-root
+      priority: 140
+      match:
+        url: {{ include "portal.publicURL" . }}/
+        methods:
+          - GET
+          - HEAD
+          - OPTIONS
+      authenticators:
+        - handler: anonymous
+      authorizer:
+        handler: allow
+      mutators:
+        - handler: noop
+      upstream:
+        url: {{ include "portal.frontendInternalURL" . }}
+
+    - id: front-all
+      priority: 100
+      match:
+        url: {{ include "portal.publicURL" . }}/<(?!_next/|api/|\.ory/).+>
+        methods:
+          - GET
+          - HEAD
+          - OPTIONS
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+      authenticators:
+        - handler: anonymous
+      authorizer:
+        handler: allow
+      mutators:
+        - handler: noop
+      upstream:
+        url: {{ include "portal.frontendInternalURL" . }}
+
+backend:
+  image: laofa009/qbb:backend-1106
+  replicaCount: 1
+  env: {}
+  config: |-
+    server:
+      address: ":8080"
+
+    platform:
+      tenant_id: "00000000-0000-0000-0000-000000000001"
+      tenant_code: "platform"
+
+    logging:
+      level: info
+      development: true
+
+    database:
+      dsn: postgres://portal:portal@{{ include "portal.fullname" . }}-postgres:5432/portal?sslmode=disable
+      max_open_conns: 10
+      max_idle_conns: 5
+      conn_max_lifetime: 5m
+
+    oathkeeper:
+      identity_header: X-Session-Subject
+      roles_header: X-Session-Roles
+      user_type_header: X-Session-User-Type
+      tenant_header: X-Tenant-Id
+
+    keto:
+      read_remote: {{ include "portal.ketoReadURL" . }}
+      write_remote: {{ include "portal.ketoWriteURL" . }}
+      namespace_prefix: Tenant
+      permission_relation: can
+      membership_relation: member
+      request_timeout: 2s
+
+    kratos:
+      admin_url: {{ include "portal.kratosAdminURL" . }}
+      public_url: {{ include "portal.kratosPublicURL" . }}
+      schema_id: portal
+      timeout: 2s
+      webhook:
+        username: kratos
+        password: kratos-hook
+  resources: {}
+
+frontend:
+  image: laofa009/qbb:frontend-1106
+  replicaCount: 1
+  env:
+    NEXT_PUBLIC_KRATOS_PUBLIC_URL: '{{ include "portal.publicURL" . }}/.ory'
+  resources: {}
+
+migrations:
+  enabled: true
+  images:
+    portal: migrate/migrate:v4.15.2
+    kratos: laofa009/qbb:kratos-1106
+    keto: oryd/keto:v0.14.0
+
+seedAdmin:
+  enabled: true
+  image: python:3.12-alpine
+  identifier: "+8613800000000"
+  password: "ChangeMe123!"
+  nickname: "平台管理员"
+  tenantId: "00000000-0000-0000-0000-000000000001"
+  roles: "platform_admin"
+  namespace: "Tenant"

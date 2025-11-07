@@ -1,0 +1,39 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "portal.fullname" . }}-proxy
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+{{ toYaml . | indent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- $root := . }}
+  rules:
+  {{- range .Values.ingress.hosts }}
+    - {{- $host := .host | default "" -}}
+      {{- if $host }}
+      host: {{ $host }}
+      {{- end }}
+      http:
+        paths:
+        {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "portal.fullname" $root }}-oathkeeper
+                port:
+                  name: proxy
+        {{- end }}
+  {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+{{ toYaml . | indent 4 }}
+  {{- end }}
+{{- end }}

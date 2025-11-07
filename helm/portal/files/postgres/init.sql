@@ -1,0 +1,8 @@
+CREATE ROLE kratos LOGIN PASSWORD 'kratos';
+CREATE ROLE keto LOGIN PASSWORD 'keto';
+CREATE ROLE portal LOGIN PASSWORD 'portal';
+
+CREATE DATABASE kratos OWNER kratos;
+CREATE DATABASE keto OWNER keto;
+CREATE DATABASE portal OWNER portal;
+

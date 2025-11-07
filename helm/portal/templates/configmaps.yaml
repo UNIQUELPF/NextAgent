@@ -1,0 +1,165 @@
+{{- $backendConfig := "" }}
+{{- if .Values.backend.config }}
+  {{- $backendConfig = tpl .Values.backend.config . }}
+{{- else if (.Files.Glob "files/backend/app.yaml") }}
+  {{- $backendConfig = .Files.Get "files/backend/app.yaml" }}
+{{- end }}
+{{- if $backendConfig }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "portal.fullname" . }}-backend-config
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+data:
+  app.yaml: |
+{{ include "portal.indentConfig" (dict "n" 4 "value" $backendConfig) }}
+{{- end }}
+
+{{- $kratosConfig := "" }}
+{{- if .Values.kratos.config }}
+  {{- $kratosConfig = tpl .Values.kratos.config . }}
+{{- else if (.Files.Glob "files/kratos/kratos.yaml") }}
+  {{- $kratosConfig = .Files.Get "files/kratos/kratos.yaml" }}
+{{- end }}
+{{- $identitySchema := "" }}
+{{- if .Values.kratos.identitySchema }}
+  {{- $identitySchema = tpl .Values.kratos.identitySchema . }}
+{{- else if (.Files.Glob "files/kratos/identity.schema.json") }}
+  {{- $identitySchema = .Files.Get "files/kratos/identity.schema.json" }}
+{{- end }}
+{{- $kratosTemplates := .Files.Glob "files/kratos/courier/templates/**/*" }}
+{{- if $kratosConfig }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "portal.fullname" . }}-kratos-config
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+data:
+  kratos.yaml: |
+{{ include "portal.indentConfig" (dict "n" 4 "value" $kratosConfig) }}
+{{- if $identitySchema }}
+  identity.schema.json: |
+{{ include "portal.indentConfig" (dict "n" 4 "value" $identitySchema) }}
+{{- end }}
+{{- range $path, $file := $kratosTemplates }}
+{{- $rel := trimPrefix "files/kratos/" $path }}
+{{- $key := replace $rel "/" "__" }}
+  {{ $key }}: |
+{{ printf "%s" $file | indent 4 }}
+{{- end }}
+{{- end }}
+
+{{- $ketoConfig := "" }}
+{{- if .Values.keto.config }}
+  {{- $ketoConfig = tpl .Values.keto.config . }}
+{{- else if (.Files.Glob "files/keto/keto.yaml") }}
+  {{- $ketoConfig = .Files.Get "files/keto/keto.yaml" }}
+{{- end }}
+{{- $ketoInlineOpl := "" }}
+{{- if .Values.keto.opl }}
+  {{- $ketoInlineOpl = tpl .Values.keto.opl . }}
+{{- end }}
+{{- $ketoOplFiles := .Files.Glob "files/keto/opl/*" }}
+{{- if $ketoConfig }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "portal.fullname" . }}-keto-config
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+data:
+  keto.yaml: |
+{{ include "portal.indentConfig" (dict "n" 4 "value" $ketoConfig) }}
+{{- if or $ketoInlineOpl $ketoOplFiles }}
+{{- if $ketoInlineOpl }}
+  inline-opl.ts: |
+{{ include "portal.indentConfig" (dict "n" 4 "value" $ketoInlineOpl) }}
+{{- end }}
+{{- range $path, $file := $ketoOplFiles }}
+  {{ base $path }}: |
+{{ printf "%s" $file | indent 4 }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- $oathkeeperConfig := "" }}
+{{- if .Values.oathkeeper.config }}
+  {{- $oathkeeperConfig = tpl .Values.oathkeeper.config . }}
+{{- else if (.Files.Glob "files/oathkeeper/config.yaml") }}
+  {{- $oathkeeperConfig = .Files.Get "files/oathkeeper/config.yaml" }}
+{{- end }}
+{{- $oathkeeperRules := "" }}
+{{- if .Values.oathkeeper.rules }}
+  {{- $oathkeeperRules = tpl .Values.oathkeeper.rules . }}
+{{- else if (.Files.Glob "files/oathkeeper/rules.yaml") }}
+  {{- $oathkeeperRules = .Files.Get "files/oathkeeper/rules.yaml" }}
+{{- end }}
+{{- if $oathkeeperConfig }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "portal.fullname" . }}-oathkeeper-config
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+{{ include "portal.indentConfig" (dict "n" 4 "value" $oathkeeperConfig) }}
+{{- if $oathkeeperRules }}
+  rules.yaml: |
+{{ include "portal.indentConfig" (dict "n" 4 "value" $oathkeeperRules) }}
+{{- end }}
+{{- end }}
+{{- $migrationFiles := .Files.Glob "files/migrations/*.sql" }}
+{{- if $migrationFiles }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "portal.fullname" . }}-portal-migrations
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+data:
+{{- range $path, $file := $migrationFiles }}
+  {{ base $path }}: |
+{{ printf "%s" $file | indent 4 }}
+{{- end }}
+{{- end }}
+
+{{- $postgresInit := .Files.Glob "files/postgres/*.sql" }}
+{{- if and .Values.postgres.enabled $postgresInit }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "portal.fullname" . }}-postgres-init
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+data:
+{{- range $path, $file := $postgresInit }}
+  {{ base $path }}: |
+{{ printf "%s" $file | indent 4 }}
+{{- end }}
+{{- end }}
+
+{{- $seedScript := "" }}
+{{- if .Values.seedAdmin.enabled }}
+  {{- if (.Files.Glob "files/scripts/seed-platform-admin.sh") }}
+    {{- $seedScript = .Files.Get "files/scripts/seed-platform-admin.sh" }}
+  {{- end }}
+{{- end }}
+{{- if $seedScript }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "portal.fullname" . }}-seed-admin-script
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+data:
+  seed-platform-admin.sh: |
+{{ include "portal.indentConfig" (dict "n" 4 "value" $seedScript) }}
+{{- end }}

@@ -1,0 +1,165 @@
+{{- if .Values.migrations.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "portal.fullname" . }}-portal-migrate
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        {{- include "portal.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:15
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h {{ include "portal.fullname" . }}-postgres -p 5432 -U postgres; do
+                echo "waiting for postgres..."
+                sleep 2
+              done
+          env:
+            - name: PGPASSWORD
+              value: {{ .Values.postgres.password | quote }}
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+{{- range .Values.global.imagePullSecrets }}
+        - name: {{ . }}
+{{- end }}
+      {{- end }}
+      containers:
+        - name: migrate
+          image: "{{ .Values.migrations.images.portal }}"
+          args:
+            - "-path=/migrations"
+            - "-database"
+            - {{ printf "postgres://portal:portal@%s-postgres:5432/portal?sslmode=disable" (include "portal.fullname" .) | quote }}
+            - up
+          volumeMounts:
+            - name: migrations
+              mountPath: /migrations
+      volumes:
+        - name: migrations
+          configMap:
+            name: {{ include "portal.fullname" . }}-portal-migrations
+{{- end }}
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "portal.fullname" . }}-keto-migrate
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        {{- include "portal.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:15
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h {{ include "portal.fullname" . }}-postgres -p 5432 -U postgres; do
+                echo "waiting for postgres..."
+                sleep 2
+              done
+          env:
+            - name: PGPASSWORD
+              value: {{ .Values.postgres.password | quote }}
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+{{- range .Values.global.imagePullSecrets }}
+        - name: {{ . }}
+{{- end }}
+      {{- end }}
+      containers:
+        - name: migrate
+          image: "{{ .Values.migrations.images.keto }}"
+          command:
+            - sh
+            - -c
+            - |
+              set -euo pipefail
+              keto migrate up --yes --config /etc/config/keto/keto.yaml
+          env:
+            - name: DSN
+              value: postgres://keto:keto@{{ include "portal.fullname" . }}-postgres:5432/keto?sslmode=disable
+          volumeMounts:
+            - name: keto-config
+              mountPath: /etc/config/keto
+      volumes:
+        - name: keto-config
+          configMap:
+            name: {{ include "portal.fullname" . }}-keto-config
+            items:
+              - key: keto.yaml
+                path: keto.yaml
+{{- if .Values.keto.opl }}
+              - key: inline-opl.ts
+                path: opl/inline-opl.ts
+{{- end }}
+{{- $ketoOplFiles := .Files.Glob "files/keto/opl/*" }}
+{{- range $path, $_ := $ketoOplFiles }}
+              - key: {{ base $path }}
+                path: opl/{{ base $path }}
+{{- end }}
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "portal.fullname" . }}-kratos-migrate
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        {{- include "portal.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:15
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h {{ include "portal.fullname" . }}-postgres -p 5432 -U postgres; do
+                echo "waiting for postgres..."
+                sleep 2
+              done
+          env:
+            - name: PGPASSWORD
+              value: {{ .Values.postgres.password | quote }}
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+{{- range .Values.global.imagePullSecrets }}
+        - name: {{ . }}
+{{- end }}
+      {{- end }}
+      containers:
+        - name: migrate
+          image: "{{ .Values.migrations.images.kratos }}"
+          args:
+            - migrate
+            - sql
+            - -e
+            - --yes
+          env:
+            - name: DSN
+              value: postgres://kratos:kratos@{{ include "portal.fullname" . }}-postgres:5432/kratos?sslmode=disable

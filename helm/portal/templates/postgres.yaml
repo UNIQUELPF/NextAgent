@@ -1,0 +1,97 @@
+{{- if .Values.postgres.enabled }}
+{{- $postgresInit := .Files.Glob "files/postgres/*.sql" }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "portal.fullname" . }}-postgres
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "portal.fullname" . }}-postgres
+  replicas: {{ .Values.postgres.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: postgres
+      {{- include "portal.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: postgres
+        {{- include "portal.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+{{- range .Values.global.imagePullSecrets }}
+        - name: {{ . }}
+{{- end }}
+      {{- end }}
+      {{- with .Values.postgres.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.postgres.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.postgres.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: postgres
+          image: "{{ .Values.global.imageRegistry }}{{ if .Values.global.imageRegistry }}/{{ end }}{{ .Values.postgres.image }}"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.postgres.username | quote }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.postgres.password | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.database | quote }}
+          ports:
+            - containerPort: 5432
+              name: postgres
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            {{- if $postgresInit }}
+            - name: initdb
+              mountPath: /docker-entrypoint-initdb.d
+            {{- end }}
+          {{- with .Values.postgres.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- if $postgresInit }}
+      volumes:
+        - name: initdb
+          configMap:
+            name: {{ include "portal.fullname" . }}-postgres-init
+      {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: {{ .Values.postgres.persistence.accessModes | toJson }}
+        resources:
+          requests:
+            storage: {{ .Values.postgres.persistence.size }}
+        {{- if .Values.global.storageClass }}
+        storageClassName: {{ .Values.global.storageClass }}
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "portal.fullname" . }}-postgres
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      name: postgres
+  selector:
+    app.kubernetes.io/component: postgres
+    {{- include "portal.selectorLabels" . | nindent 4 }}
+{{- end }}

@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "portal.fullname" . }}-backend
+  labels:
+    app.kubernetes.io/component: backend
+    {{- include "portal.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+      {{- include "portal.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: backend
+        {{- include "portal.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/migrations: {{ include (print $.Template.BasePath "/migrations.yaml") . | sha256sum }}
+    spec:
+      initContainers:
+        - name: wait-for-portal-migrations
+          image: postgres:15
+          env:
+            - name: DATABASE_DSN
+              value: {{ printf "postgres://portal:portal@%s-postgres:5432/portal?sslmode=disable" (include "portal.fullname" .) | quote }}
+          command:
+            - sh
+            - -c
+            - |
+              set -euo pipefail
+              until psql "$DATABASE_DSN" -Atqc "SELECT to_regclass('public.permissions') IS NOT NULL;" | grep -q t; do
+                echo "waiting for portal migrations..."
+                sleep 2
+              done
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+{{- range .Values.global.imagePullSecrets }}
+        - name: {{ . }}
+{{- end }}
+      {{- end }}
+      containers:
+        - name: backend
+          image: "{{ .Values.global.imageRegistry }}{{ if .Values.global.imageRegistry }}/{{ end }}{{ .Values.backend.image }}"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: PORTAL__KETO__READ_REMOTE
+              value: {{ include "portal.ketoReadURL" . | quote }}
+            - name: PORTAL__KETO__WRITE_REMOTE
+              value: {{ include "portal.ketoWriteURL" . | quote }}
+            - name: PORTAL__KETO__NAMESPACE_PREFIX
+              value: "Tenant"
+            - name: PORTAL__KETO__MEMBERSHIP_RELATION
+              value: "members"
+            - name: PORTAL__DATABASE__DSN
+              value: {{ printf "postgres://portal:portal@%s-postgres:5432/portal?sslmode=disable" (include "portal.fullname" .) | quote }}
+            - name: PORTAL__SERVER__ADDRESS
+              value: ":8080"
+            - name: PORTAL__KRATOS__WEBHOOK__USERNAME
+              value: "kratos"
+            - name: PORTAL__KRATOS__WEBHOOK__PASSWORD
+              value: "kratos-hook"
+            {{- range $key, $value := .Values.backend.env }}
+            - name: {{ $key }}
+              value: {{ tpl $value $ | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: backend-config
+              mountPath: /etc/portal/configs/app.yaml
+              subPath: app.yaml
+          {{- with .Values.backend.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: backend-config
+          configMap:
+            name: {{ include "portal.fullname" . }}-backend-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "portal.fullname" . }}-backend
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      name: http
+  selector:
+    app.kubernetes.io/component: backend
+    {{- include "portal.selectorLabels" . | nindent 4 }}

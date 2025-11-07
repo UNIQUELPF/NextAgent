@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "portal.fullname" . }}-oathkeeper
+  labels:
+    app.kubernetes.io/component: oathkeeper
+    {{- include "portal.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.oathkeeper.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: oathkeeper
+      {{- include "portal.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: oathkeeper
+        {{- include "portal.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+{{- range .Values.global.imagePullSecrets }}
+        - name: {{ . }}
+{{- end }}
+      {{- end }}
+      containers:
+        - name: oathkeeper
+          image: "{{ .Values.global.imageRegistry }}{{ if .Values.global.imageRegistry }}/{{ end }}{{ .Values.oathkeeper.image }}"
+          imagePullPolicy: IfNotPresent
+          args:
+            - serve
+            - --config
+            - /etc/config/oathkeeper/config.yaml
+          ports:
+            - containerPort: 4456
+              name: proxy
+            - containerPort: 4457
+              name: api
+          volumeMounts:
+            - name: oathkeeper-config
+              mountPath: /etc/config/oathkeeper/config.yaml
+              subPath: config.yaml
+            - name: oathkeeper-config
+              mountPath: /etc/config/oathkeeper/rules.yaml
+              subPath: rules.yaml
+      volumes:
+        - name: oathkeeper-config
+          configMap:
+            name: {{ include "portal.fullname" . }}-oathkeeper-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "portal.fullname" . }}-oathkeeper
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 4456
+      name: proxy
+    - port: 4457
+      name: api
+  selector:
+    app.kubernetes.io/component: oathkeeper
+    {{- include "portal.selectorLabels" . | nindent 4 }}

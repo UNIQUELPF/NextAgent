@@ -1,0 +1,131 @@
+- id: kratos-public
+  priority: 300
+  match:
+    url: http://localhost:4456/<\.ory/.*>
+    methods:
+      - GET
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+  authenticators:
+    - handler: anonymous
+  authorizer:
+    handler: allow
+  mutators:
+    - handler: noop
+  upstream:
+    url: http://kratos:4433
+    strip_path: /.ory
+
+- id: backend-me
+  priority: 210
+  match:
+    url: http://localhost:4456/api/v1/me
+    methods:
+      - GET
+  authenticators:
+    - handler: cookie_session
+  authorizer:
+    handler: allow
+  mutators:
+    - handler: header
+      config:
+        headers:
+          X-Session-Subject: "{{ .Subject }}"
+          X-Session-User-Type: "{{ with (index .Extra \"user_type\") }}{{ . }}{{ end }}"
+          X-Session-Roles: "{{ with (index .Extra \"roles\") }}{{ join \",\" . }}{{ end }}"
+          X-Tenant-Id: "{{ with (index .Extra \"tenant_id\") }}{{ . }}{{ end }}"
+  upstream:
+    url: http://backend:8080
+
+- id: backend-api
+  priority: 200
+  match:
+    url: http://localhost:4456/<api/(?!v1/me$).+>
+    methods:
+      - GET
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+  authenticators:
+    - handler: cookie_session
+  authorizer:
+    handler: remote_json
+    config:
+      remote: http://backend:8080/api/v1/authorize
+      payload: |
+        {
+          "object": "{{ print .MatchContext.URL.Path }}",
+          "action": "{{ print .MatchContext.Method }}",
+          "subject": "{{ .Subject }}",
+          "user_type": "{{ with (index .Extra "user_type") }}{{ . }}{{ end }}",
+          "tenant_id": "{{ with (index .Extra "tenant_id") }}{{ . }}{{ end }}",
+          "roles": "{{ with (index .Extra "roles") }}{{ join "," . }}{{ end }}"
+        }
+  mutators:
+    - handler: header
+      config:
+        headers:
+          X-Session-Subject: "{{ .Subject }}"
+          X-Session-User-Type: "{{ with (index .Extra \"user_type\") }}{{ . }}{{ end }}"
+          X-Session-Roles: "{{ with (index .Extra \"roles\") }}{{ join \",\" . }}{{ end }}"
+          X-Tenant-Id: "{{ with (index .Extra \"tenant_id\") }}{{ . }}{{ end }}"
+  upstream:
+    url: http://backend:8080
+
+- id: front-assets
+  priority: 150
+  match:
+    url: http://localhost:4456/<_next/.*>
+    methods:
+      - GET
+      - HEAD
+      - OPTIONS
+  authenticators:
+    - handler: anonymous
+  authorizer:
+    handler: allow
+  mutators:
+    - handler: noop
+  upstream:
+    url: http://frontend:3000
+
+- id: front-root
+  priority: 140
+  match:
+    url: http://localhost:4456/
+    methods:
+      - GET
+      - HEAD
+      - OPTIONS
+  authenticators:
+    - handler: anonymous
+  authorizer:
+    handler: allow
+  mutators:
+    - handler: noop
+  upstream:
+    url: http://frontend:3000
+
+- id: front-all
+  priority: 100
+  match:
+    url: http://localhost:4456/<(?!_next/|api/|\.ory/).+>
+    methods:
+      - GET
+      - HEAD
+      - OPTIONS
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+  authenticators:
+    - handler: anonymous
+  authorizer:
+    handler: allow
+  mutators:
+    - handler: noop
+  upstream:
+    url: http://frontend:3000

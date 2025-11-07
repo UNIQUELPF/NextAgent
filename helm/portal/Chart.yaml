@@ -1,0 +1,6 @@
+apiVersion: v2
+name: portal
+description: Helm chart for NextAgent Portal stack (Kratos, Keto, Oathkeeper, Backend, Frontend)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

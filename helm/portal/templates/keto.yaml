@@ -1,0 +1,94 @@
+{{- $ketoOplFiles := .Files.Glob "files/keto/opl/*" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "portal.fullname" . }}-keto
+  labels:
+    app.kubernetes.io/component: keto
+    {{- include "portal.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.keto.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: keto
+      {{- include "portal.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: keto
+        {{- include "portal.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/migrations: {{ include (print $.Template.BasePath "/migrations.yaml") . | sha256sum }}
+    spec:
+      initContainers:
+        - name: wait-for-keto-migrations
+          image: postgres:15
+          env:
+            - name: DATABASE_DSN
+              value: {{ printf "postgres://keto:keto@%s-postgres:5432/keto?sslmode=disable" (include "portal.fullname" .) | quote }}
+          command:
+            - sh
+            - -c
+            - |
+              set -euo pipefail
+              until psql "$DATABASE_DSN" -Atqc "SELECT to_regclass('keto_relation_tuples') IS NOT NULL;" | grep -q t; do
+                echo "waiting for keto migrations..."
+                sleep 2
+              done
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+{{- range .Values.global.imagePullSecrets }}
+        - name: {{ . }}
+{{- end }}
+      {{- end }}
+      containers:
+        - name: keto
+          image: "{{ .Values.global.imageRegistry }}{{ if .Values.global.imageRegistry }}/{{ end }}{{ .Values.keto.image }}"
+          imagePullPolicy: IfNotPresent
+          args:
+            - serve
+            - --config
+            - /etc/config/keto/keto.yaml
+          ports:
+            - containerPort: 4466
+              name: read
+            - containerPort: 4467
+              name: write
+          env:
+            - name: DSN
+              value: postgres://keto:keto@{{ include "portal.fullname" . }}-postgres:5432/keto?sslmode=disable
+          volumeMounts:
+            - name: keto-config
+              mountPath: /etc/config/keto
+      volumes:
+        - name: keto-config
+          configMap:
+            name: {{ include "portal.fullname" . }}-keto-config
+            items:
+              - key: keto.yaml
+                path: keto.yaml
+{{- if .Values.keto.opl }}
+              - key: inline-opl.ts
+                path: opl/inline-opl.ts
+{{- end }}
+{{- range $path, $_ := $ketoOplFiles }}
+              - key: {{ base $path }}
+                path: opl/{{ base $path }}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "portal.fullname" . }}-keto
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 4466
+      name: read
+    - port: 4467
+      name: write
+  selector:
+    app.kubernetes.io/component: keto
+    {{- include "portal.selectorLabels" . | nindent 4 }}

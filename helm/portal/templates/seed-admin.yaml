@@ -1,0 +1,60 @@
+{{- if .Values.seedAdmin.enabled }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "portal.fullname" . }}-seed-admin
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        {{- include "portal.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+{{- range .Values.global.imagePullSecrets }}
+        - name: {{ . }}
+{{- end }}
+      {{- end }}
+      containers:
+        - name: seed-admin
+          image: "{{ .Values.global.imageRegistry }}{{ if .Values.global.imageRegistry }}/{{ end }}{{ .Values.seedAdmin.image }}"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "/scripts/seed-platform-admin.sh"]
+          env:
+            - name: KRATOS_ADMIN_URL
+              value: {{ include "portal.kratosAdminURL" . | quote }}
+            - name: KETO_READ_URL
+              value: {{ include "portal.ketoReadURL" . | quote }}
+            - name: KETO_WRITE_URL
+              value: {{ include "portal.ketoWriteURL" . | quote }}
+            - name: PLATFORM_ADMIN_IDENTIFIER
+              value: {{ .Values.seedAdmin.identifier | quote }}
+            - name: PLATFORM_ADMIN_PASSWORD
+              value: {{ .Values.seedAdmin.password | quote }}
+            - name: PLATFORM_ADMIN_NICKNAME
+              value: {{ .Values.seedAdmin.nickname | quote }}
+            - name: PLATFORM_ADMIN_TENANT_ID
+              value: {{ .Values.seedAdmin.tenantId | quote }}
+            - name: PLATFORM_ADMIN_ROLES
+              value: {{ .Values.seedAdmin.roles | quote }}
+            - name: PLATFORM_ADMIN_NAMESPACE
+              value: {{ .Values.seedAdmin.namespace | quote }}
+          volumeMounts:
+            - name: seed-script
+              mountPath: /scripts/seed-platform-admin.sh
+              subPath: seed-platform-admin.sh
+      volumes:
+        - name: seed-script
+          configMap:
+            name: {{ include "portal.fullname" . }}-seed-admin-script
+            defaultMode: 0755
+{{- end }}

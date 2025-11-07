@@ -1,0 +1,38 @@
+server:
+  address: ":8080"
+
+platform:
+  tenant_id: "00000000-0000-0000-0000-000000000001"
+  tenant_code: "platform"
+
+logging:
+  level: info
+  development: true
+
+database:
+  dsn: postgres://portal:portal@postgres:5432/portal?sslmode=disable
+  max_open_conns: 10
+  max_idle_conns: 5
+  conn_max_lifetime: 5m
+
+oathkeeper:
+  identity_header: X-Session-Subject
+  roles_header: X-Session-Roles
+  user_type_header: X-Session-User-Type
+  tenant_header: X-Tenant-Id
+keto:
+  read_remote: http://keto:4466
+  write_remote: http://keto:4467
+  namespace_prefix: Tenant
+  permission_relation: can
+  membership_relation: members
+  request_timeout: 2s
+
+kratos:
+  admin_url: http://kratos:4434
+  public_url: http://kratos:4433
+  schema_id: portal
+  timeout: 2s
+  webhook:
+    username: kratos
+    password: kratos-hook
