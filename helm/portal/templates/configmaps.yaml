@@ -62,7 +62,10 @@ data:
 {{- if .Values.keto.opl }}
   {{- $ketoInlineOpl = tpl .Values.keto.opl . }}
 {{- end }}
-{{- $ketoOplFiles := .Files.Glob "files/keto/opl/*" }}
+{{- $ketoOplFile := "" }}
+{{- if (.Files.Glob "files/keto/opl.ts") }}
+  {{- $ketoOplFile = .Files.Get "files/keto/opl.ts" }}
+{{- end }}
 {{- if $ketoConfig }}
 ---
 apiVersion: v1
@@ -74,14 +77,14 @@ metadata:
 data:
   keto.yaml: |
 {{ include "portal.indentConfig" (dict "n" 4 "value" $ketoConfig) }}
-{{- if or $ketoInlineOpl $ketoOplFiles }}
+{{- if or $ketoInlineOpl $ketoOplFile }}
 {{- if $ketoInlineOpl }}
   inline-opl.ts: |
 {{ include "portal.indentConfig" (dict "n" 4 "value" $ketoInlineOpl) }}
 {{- end }}
-{{- range $path, $file := $ketoOplFiles }}
-  {{ base $path }}: |
-{{ printf "%s" $file | indent 4 }}
+{{- if $ketoOplFile }}
+  opl.ts: |
+{{ include "portal.indentConfig" (dict "n" 4 "value" $ketoOplFile) }}
 {{- end }}
 {{- end }}
 {{- end }}

@@ -109,12 +109,12 @@ spec:
                 path: keto.yaml
 {{- if .Values.keto.opl }}
               - key: inline-opl.ts
-                path: opl/inline-opl.ts
+                path: inline-opl.ts
 {{- end }}
-{{- $ketoOplFiles := .Files.Glob "files/keto/opl/*" }}
-{{- range $path, $_ := $ketoOplFiles }}
-              - key: {{ base $path }}
-                path: opl/{{ base $path }}
+{{- $ketoOplFile := .Files.Glob "files/keto/opl.ts" }}
+{{- if $ketoOplFile }}
+              - key: opl.ts
+                path: opl.ts
 {{- end }}
 
 ---

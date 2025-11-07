@@ -136,7 +136,7 @@ def ensure_keto_relation(identity_id: str) -> None:
         "subject_id": identity_id,
     }
     status, response = http_request("PUT", f"{KETO_WRITE_URL}/admin/relation-tuples", body=payload)
-    if status not in (200, 204):
+    if status not in (200, 201, 204):
         info(f"failed to create Keto relation: HTTP {status} {response}")
         sys.exit(1)
     info("Keto relation created")

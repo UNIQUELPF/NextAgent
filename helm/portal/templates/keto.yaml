@@ -1,4 +1,4 @@
-{{- $ketoOplFiles := .Files.Glob "files/keto/opl/*" }}
+{{- $ketoOplFile := .Files.Glob "files/keto/opl.ts" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -69,11 +69,11 @@ spec:
                 path: keto.yaml
 {{- if .Values.keto.opl }}
               - key: inline-opl.ts
-                path: opl/inline-opl.ts
+                path: inline-opl.ts
 {{- end }}
-{{- range $path, $_ := $ketoOplFiles }}
-              - key: {{ base $path }}
-                path: opl/{{ base $path }}
+{{- if $ketoOplFile }}
+              - key: opl.ts
+                path: opl.ts
 {{- end }}
 ---
 apiVersion: v1
