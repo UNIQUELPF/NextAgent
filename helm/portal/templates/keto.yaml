@@ -18,6 +18,7 @@ spec:
         app.kubernetes.io/component: keto
         {{- include "portal.selectorLabels" . | nindent 8 }}
       annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmaps.yaml") . | sha256sum }}
         checksum/migrations: {{ include (print $.Template.BasePath "/migrations.yaml") . | sha256sum }}
     spec:
       initContainers:

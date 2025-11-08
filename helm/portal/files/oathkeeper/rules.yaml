@@ -1,7 +1,7 @@
 - id: kratos-public
   priority: 300
   match:
-    url: http://localhost:4456/<\.ory/.*>
+    url: {{ printf "%s/<\\.ory/.*>" (include "portal.publicURL" .) | quote }}
     methods:
       - GET
       - POST
@@ -15,13 +15,13 @@
   mutators:
     - handler: noop
   upstream:
-    url: http://kratos:4433
+    url: {{ include "portal.kratosPublicURL" . | quote }}
     strip_path: /.ory
 
 - id: backend-me
   priority: 210
   match:
-    url: http://localhost:4456/api/v1/me
+    url: {{ printf "%s/api/v1/me" (include "portal.publicURL" .) | quote }}
     methods:
       - GET
   authenticators:
@@ -37,12 +37,12 @@
           X-Session-Roles: "{{ with (index .Extra \"roles\") }}{{ join \",\" . }}{{ end }}"
           X-Tenant-Id: "{{ with (index .Extra \"tenant_id\") }}{{ . }}{{ end }}"
   upstream:
-    url: http://backend:8080
+    url: {{ include "portal.backendInternalURL" . | quote }}
 
 - id: backend-api
   priority: 200
   match:
-    url: http://localhost:4456/<api/(?!v1/me$).+>
+    url: {{ printf "%s/<api/(?!v1/me$).+>" (include "portal.publicURL" .) | quote }}
     methods:
       - GET
       - POST
@@ -54,15 +54,15 @@
   authorizer:
     handler: remote_json
     config:
-      remote: http://backend:8080/api/v1/authorize
+      remote: {{ printf "%s/api/v1/authorize" (include "portal.backendInternalURL" .) | quote }}
       payload: |
         {
           "object": "{{ print .MatchContext.URL.Path }}",
           "action": "{{ print .MatchContext.Method }}",
           "subject": "{{ .Subject }}",
-          "user_type": "{{ with (index .Extra "user_type") }}{{ . }}{{ end }}",
-          "tenant_id": "{{ with (index .Extra "tenant_id") }}{{ . }}{{ end }}",
-          "roles": "{{ with (index .Extra "roles") }}{{ join "," . }}{{ end }}"
+          "user_type": "{{ with (index .Extra \"user_type\") }}{{ . }}{{ end }}",
+          "tenant_id": "{{ with (index .Extra \"tenant_id\") }}{{ . }}{{ end }}",
+          "roles": "{{ with (index .Extra \"roles\") }}{{ join \",\" . }}{{ end }}"
         }
   mutators:
     - handler: header
@@ -73,12 +73,12 @@
           X-Session-Roles: "{{ with (index .Extra \"roles\") }}{{ join \",\" . }}{{ end }}"
           X-Tenant-Id: "{{ with (index .Extra \"tenant_id\") }}{{ . }}{{ end }}"
   upstream:
-    url: http://backend:8080
+    url: {{ include "portal.backendInternalURL" . | quote }}
 
 - id: front-assets
   priority: 150
   match:
-    url: http://localhost:4456/<_next/.*>
+    url: {{ printf "%s/<_next/.*>" (include "portal.publicURL" .) | quote }}
     methods:
       - GET
       - HEAD
@@ -90,12 +90,12 @@
   mutators:
     - handler: noop
   upstream:
-    url: http://frontend:3000
+    url: {{ include "portal.frontendInternalURL" . | quote }}
 
 - id: front-root
   priority: 140
   match:
-    url: http://localhost:4456/
+    url: {{ printf "%s/" (include "portal.publicURL" .) | quote }}
     methods:
       - GET
       - HEAD
@@ -107,12 +107,12 @@
   mutators:
     - handler: noop
   upstream:
-    url: http://frontend:3000
+    url: {{ include "portal.frontendInternalURL" . | quote }}
 
 - id: front-all
   priority: 100
   match:
-    url: http://localhost:4456/<(?!_next/|api/|\.ory/).+>
+    url: {{ printf "%s/<(?!_next/|api/|\\.ory/).+>" (include "portal.publicURL" .) | quote }}
     methods:
       - GET
       - HEAD
@@ -128,4 +128,4 @@
   mutators:
     - handler: noop
   upstream:
-    url: http://frontend:3000
+    url: {{ include "portal.frontendInternalURL" . | quote }}

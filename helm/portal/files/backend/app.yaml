@@ -10,7 +10,7 @@ logging:
   development: true
 
 database:
-  dsn: postgres://portal:portal@postgres:5432/portal?sslmode=disable
+  dsn: {{ printf "postgres://portal:portal@%s-postgres:5432/portal?sslmode=disable" (include "portal.fullname" .) | quote }}
   max_open_conns: 10
   max_idle_conns: 5
   conn_max_lifetime: 5m
@@ -21,16 +21,16 @@ oathkeeper:
   user_type_header: X-Session-User-Type
   tenant_header: X-Tenant-Id
 keto:
-  read_remote: http://keto:4466
-  write_remote: http://keto:4467
+  read_remote: {{ include "portal.ketoReadURL" . | quote }}
+  write_remote: {{ include "portal.ketoWriteURL" . | quote }}
   namespace_prefix: Tenant
   permission_relation: can
   membership_relation: members
   request_timeout: 2s
 
 kratos:
-  admin_url: http://kratos:4434
-  public_url: http://kratos:4433
+  admin_url: {{ include "portal.kratosAdminURL" . | quote }}
+  public_url: {{ include "portal.kratosPublicURL" . | quote }}
   schema_id: portal
   timeout: 2s
   webhook:

@@ -2,7 +2,7 @@
 {{- if .Values.backend.config }}
   {{- $backendConfig = tpl .Values.backend.config . }}
 {{- else if (.Files.Glob "files/backend/app.yaml") }}
-  {{- $backendConfig = .Files.Get "files/backend/app.yaml" }}
+  {{- $backendConfig = tpl (.Files.Get "files/backend/app.yaml") . }}
 {{- end }}
 {{- if $backendConfig }}
 apiVersion: v1
@@ -20,13 +20,13 @@ data:
 {{- if .Values.kratos.config }}
   {{- $kratosConfig = tpl .Values.kratos.config . }}
 {{- else if (.Files.Glob "files/kratos/kratos.yaml") }}
-  {{- $kratosConfig = .Files.Get "files/kratos/kratos.yaml" }}
+  {{- $kratosConfig = tpl (.Files.Get "files/kratos/kratos.yaml") . }}
 {{- end }}
 {{- $identitySchema := "" }}
 {{- if .Values.kratos.identitySchema }}
   {{- $identitySchema = tpl .Values.kratos.identitySchema . }}
 {{- else if (.Files.Glob "files/kratos/identity.schema.json") }}
-  {{- $identitySchema = .Files.Get "files/kratos/identity.schema.json" }}
+  {{- $identitySchema = tpl (.Files.Get "files/kratos/identity.schema.json") . }}
 {{- end }}
 {{- $kratosTemplates := .Files.Glob "files/kratos/courier/templates/**/*" }}
 {{- if $kratosConfig }}
@@ -56,7 +56,7 @@ data:
 {{- if .Values.keto.config }}
   {{- $ketoConfig = tpl .Values.keto.config . }}
 {{- else if (.Files.Glob "files/keto/keto.yaml") }}
-  {{- $ketoConfig = .Files.Get "files/keto/keto.yaml" }}
+  {{- $ketoConfig = tpl (.Files.Get "files/keto/keto.yaml") . }}
 {{- end }}
 {{- $ketoInlineOpl := "" }}
 {{- if .Values.keto.opl }}
@@ -64,7 +64,7 @@ data:
 {{- end }}
 {{- $ketoOplFile := "" }}
 {{- if (.Files.Glob "files/keto/opl.ts") }}
-  {{- $ketoOplFile = .Files.Get "files/keto/opl.ts" }}
+  {{- $ketoOplFile = tpl (.Files.Get "files/keto/opl.ts") . }}
 {{- end }}
 {{- if $ketoConfig }}
 ---
@@ -92,13 +92,13 @@ data:
 {{- if .Values.oathkeeper.config }}
   {{- $oathkeeperConfig = tpl .Values.oathkeeper.config . }}
 {{- else if (.Files.Glob "files/oathkeeper/config.yaml") }}
-  {{- $oathkeeperConfig = .Files.Get "files/oathkeeper/config.yaml" }}
+  {{- $oathkeeperConfig = tpl (.Files.Get "files/oathkeeper/config.yaml") . }}
 {{- end }}
 {{- $oathkeeperRules := "" }}
 {{- if .Values.oathkeeper.rules }}
   {{- $oathkeeperRules = tpl .Values.oathkeeper.rules . }}
 {{- else if (.Files.Glob "files/oathkeeper/rules.yaml") }}
-  {{- $oathkeeperRules = .Files.Get "files/oathkeeper/rules.yaml" }}
+  {{- $oathkeeperRules = tpl (.Files.Get "files/oathkeeper/rules.yaml") . }}
 {{- end }}
 {{- if $oathkeeperConfig }}
 ---
@@ -150,8 +150,8 @@ data:
 
 {{- $seedScript := "" }}
 {{- if .Values.seedAdmin.enabled }}
-  {{- if (.Files.Glob "files/scripts/seed-platform-admin.sh") }}
-    {{- $seedScript = .Files.Get "files/scripts/seed-platform-admin.sh" }}
+{{- if (.Files.Glob "files/scripts/seed-platform-admin.sh") }}
+    {{- $seedScript = tpl (.Files.Get "files/scripts/seed-platform-admin.sh") . }}
   {{- end }}
 {{- end }}
 {{- if $seedScript }}

@@ -10,9 +10,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-KRATOS_ADMIN_URL = os.environ.get("KRATOS_ADMIN_URL", "http://kratos:4434")
-KETO_READ_URL = os.environ.get("KETO_READ_URL", "http://keto:4466")
-KETO_WRITE_URL = os.environ.get("KETO_WRITE_URL", "http://keto:4467")
+KRATOS_ADMIN_URL = os.environ.get("KRATOS_ADMIN_URL", '{{ include "portal.kratosAdminURL" . }}')
+KETO_READ_URL = os.environ.get("KETO_READ_URL", '{{ include "portal.ketoReadURL" . }}')
+KETO_WRITE_URL = os.environ.get("KETO_WRITE_URL", '{{ include "portal.ketoWriteURL" . }}')
 
 ADMIN_IDENTIFIER = os.environ.get("PLATFORM_ADMIN_IDENTIFIER", "+8613800000000")
 ADMIN_PASSWORD = os.environ.get("PLATFORM_ADMIN_PASSWORD", "ChangeMe123!")
