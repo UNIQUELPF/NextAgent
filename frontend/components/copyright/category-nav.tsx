@@ -10,7 +10,7 @@ export function CategoryNav() {
   const pathname = usePathname();
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center justify-center gap-2">
       {CATEGORY_LIST.map((category) => {
         const href = `/copyright/${category.slug}`;
         const isActive = pathname === href;

@@ -6,6 +6,7 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { CurrentUserProvider } from "@/components/providers/current-user-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { HeaderVisibilityProvider } from "@/components/providers/header-visibility";
+import { MobileDock } from "@/components/layout/mobile-dock";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -36,9 +37,12 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           <HeaderVisibilityProvider>
             <CurrentUserProvider>
-              <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10">
-                <SiteHeader />
-                <main className="pb-16 pt-10">{children}</main>
+              <div className="relative min-h-screen overflow-hidden bg-background">
+                <div className="relative z-10">
+                  <SiteHeader />
+                  <main className="relative z-10 pb-24 pt-8">{children}</main>
+                </div>
+                <MobileDock />
               </div>
             </CurrentUserProvider>
           </HeaderVisibilityProvider>

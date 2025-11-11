@@ -40,7 +40,7 @@ export function CategoryDashboard({ config }: CategoryDashboardProps) {
 
 function Hero({ config }: CategoryDashboardProps) {
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-border/70 bg-gradient-to-br from-background via-background to-primary/10 p-8 shadow-sm">
+    <section className="relative overflow-hidden rounded-3xl border border-border/70 bg-white/10 p-8 shadow-sm">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

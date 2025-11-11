@@ -41,7 +41,7 @@ export function SectorDashboard({ config }: Props) {
 
 function Hero({ config }: Props) {
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-border/70 bg-gradient-to-br from-background via-background to-secondary/10 p-8 shadow-sm">
+    <section className="relative overflow-hidden rounded-3xl border border-border/70 bg-white/10 p-8 shadow-sm">
       <div className="pointer-events-none absolute right-12 top-0 hidden h-48 w-48 rounded-full bg-secondary/20 blur-3xl md:block" />
       <motion.div
         initial={{ opacity: 0, y: 24 }}

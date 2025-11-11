@@ -24,21 +24,21 @@ export function ProcessNav() {
   }, [query]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-sm">
+    <div className="space-y-6">
+      <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:justify-center">
+        <div className="relative w-full max-w-lg">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="search"
             placeholder="搜索业务类型或关键词..."
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            className="w-full rounded-2xl border border-border/70 bg-background px-10 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
+            className="w-full rounded-2xl border border-border/70 bg-white px-10 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
           />
         </div>
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-2xl border border-border/70 bg-background px-4 py-2 text-sm text-muted-foreground transition hover:border-primary/40 hover:text-primary"
+          className="inline-flex items-center gap-2 rounded-2xl border border-border/70 bg-background/80 px-4 py-2 text-sm text-muted-foreground transition hover:border-primary/40 hover:text-primary"
         >
           <Filter className="h-4 w-4" />
           保存视图

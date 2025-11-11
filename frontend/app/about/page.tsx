@@ -48,7 +48,7 @@ const contact = [
 export default function AboutPage() {
   return (
     <div className="container space-y-12">
-      <header className="relative overflow-hidden rounded-3xl border border-border/70 bg-gradient-to-br from-background via-background to-secondary/15 p-10 shadow-sm">
+      <header className="relative overflow-hidden rounded-3xl border border-border/70 bg-background/90 p-10 shadow-sm">
         <div className="pointer-events-none absolute right-6 top-0 hidden h-52 w-52 rounded-full bg-secondary/20 blur-3xl md:block" />
         <div className="space-y-6">
           <motion.span

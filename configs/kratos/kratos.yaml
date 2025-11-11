@@ -111,7 +111,6 @@ courier:
 session:
   cookie:
     same_site: Lax
-    secure: false
   lifespan: 720h
 
 feature_flags:
