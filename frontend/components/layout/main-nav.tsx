@@ -27,7 +27,7 @@ type MainNavProps = {
 };
 
 const SEGMENTED_COUNT = 6;
-const NAV_TYPOGRAPHY = "text-[0.95rem] font-semibold tracking-tight sm:text-base lg:text-[1.05rem]";
+const NAV_TYPOGRAPHY = "text-[0.9rem] font-semibold tracking-tight sm:text-[0.95rem] lg:text-base";
 const NAV_ACTIVE_TEXT = "text-primary";
 const NAV_MUTED_TEXT = "text-muted-foreground group-hover:text-foreground";
 
@@ -61,7 +61,7 @@ export function MainNav({ direction = "row", className, onNavigate }: MainNavPro
   return (
     <nav
       className={cn(
-        "relative flex min-h-[56px] gap-2 rounded-2xl border border-white/70",
+        "relative flex min-h-[48px] gap-2 rounded-2xl border border-white/70",
         direction === "column"
           ? "flex-col bg-pure-white p-4 shadow-lg"
           : "w-full items-center justify-center bg-pure-white-muted p-1",
@@ -73,8 +73,8 @@ export function MainNav({ direction = "row", className, onNavigate }: MainNavPro
           {NAV_ITEMS.map((item) => renderListLink({ item, pathname, onNavigate }))}
         </div>
       ) : (
-        <div className="flex w-full max-w-[1200px] items-center justify-center gap-3">
-          <div className="flex w-full items-center gap-1.5 rounded-full bg-pure-white-ghost px-3 py-2 text-slate-600">
+        <div className="flex w-full max-w-[1200px] items-center justify-center gap-2">
+          <div className="flex w-full items-center gap-1 rounded-full bg-pure-white-ghost px-2.5 py-1.5 text-slate-600">
             {visibleItems.map((item) => renderSegment({ item, pathname, onNavigate }))}
           </div>
           {overflowItems.length > 0 ? (
@@ -105,12 +105,12 @@ export function MainNav({ direction = "row", className, onNavigate }: MainNavPro
                         onNavigate?.();
                         setMoreOpen(false);
                       }}
-                      className={cn(
-        "block rounded-xl px-3 py-2 text-sm transition",
-        pathname.startsWith(item.href)
-          ? "bg-[#EEF0FF] font-semibold text-[#3940FF]"
-          : "text-slate-600 hover:bg-pure-white-soft",
-                      )}
+                className={cn(
+                  "block rounded-xl px-2.5 py-1.5 text-sm transition",
+                  pathname.startsWith(item.href)
+                    ? "bg-[#EEF0FF] font-semibold text-[#3940FF]"
+                    : "text-slate-600 hover:bg-pure-white-soft",
+                )}
                     >
                       {item.label}
                     </Link>
@@ -141,7 +141,7 @@ function renderSegment({
       href={item.href}
       onClick={onNavigate}
       className={cn(
-        "group relative flex-1 overflow-hidden rounded-full px-5 py-2 text-center transition-all duration-300",
+        "group relative flex-1 overflow-hidden rounded-full px-4 py-1.5 text-center transition-all duration-300",
         isActive
           ? "bg-pure-white shadow-[0_20px_35px_-22px_rgba(90,96,255,0.85)] ring-1 ring-[#96B0FF]/60"
           : "bg-pure-white-faint hover:bg-pure-white-muted",
@@ -149,7 +149,7 @@ function renderSegment({
     >
       <span
         className={cn(
-          "inline-flex items-center justify-center rounded-full bg-pure-white px-3 py-1 shadow-sm",
+          "inline-flex items-center justify-center rounded-full bg-pure-white px-2.5 py-0.5 shadow-sm",
           NAV_TYPOGRAPHY,
           isActive ? NAV_ACTIVE_TEXT : NAV_MUTED_TEXT,
         )}
@@ -176,7 +176,7 @@ function renderListLink({
       href={item.href}
       onClick={onNavigate}
       className={cn(
-        "group rounded-2xl border px-4 py-2.5 transition-all duration-300",
+        "group rounded-2xl border px-3.5 py-2 transition-all duration-300",
         isActive
           ? "border-[#5A68FF]/60 bg-pure-white-soft shadow-lg shadow-[#5A68FF]/20"
           : "border-border/70 bg-pure-white-muted text-slate-600 hover:border-[#5A68FF]/40 hover:bg-pure-white-soft",

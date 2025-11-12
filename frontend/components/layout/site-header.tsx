@@ -179,9 +179,9 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-50">
-      <div className="relative overflow-visible border-b border-border/60 bg-pure-white shadow-[0_12px_35px_rgba(17,17,17,0.08)]">
-        <div className="mx-auto flex w-full max-w-[3600px] items-center justify-center gap-14 px-12 py-4 lg:px-16">
-          <div className="flex flex-[0.4] items-center justify-start gap-2 pr-6 lg:justify-end">
+      <div className="relative overflow-visible bg-pure-white">
+        <div className="mx-auto flex w-full max-w-[3600px] items-center justify-between gap-3 px-4 py-2.5 lg:justify-center lg:gap-14 lg:px-12 lg:py-4 xl:px-16">
+          <div className="flex flex-1 items-center justify-start gap-2 pr-3 lg:flex-[0.4] lg:pr-6 lg:justify-end">
             <Link
               href="/"
               className="logo-soft-shadow relative flex items-center rounded-2xl border border-white/50 bg-pure-white-soft px-3 py-1.5 shadow-inner shadow-white/40"
@@ -190,16 +190,16 @@ export function SiteHeader() {
                 src="/logo.png"
                 alt="企标邦"
                 priority
-                width={180}
-                height={56}
-                className="h-11 w-auto object-contain"
+                width={70}
+                height={22}
+                className="h-5 w-auto object-contain lg:h-11 lg:w-auto"
               />
             </Link>
           </div>
           <div className="hidden flex-[1.2] justify-center px-12 lg:flex lg:justify-center lg:ml-12 lg:mr-0">
             <MainNav className="w-full max-w-[2350px] shrink-0" />
           </div>
-          <div className="flex flex-[0.6] items-center justify-end gap-3 px-6 lg:justify-center lg:pl-4">
+          <div className="flex flex-1 items-center justify-end gap-2.5 pl-3 lg:flex-[0.6] lg:justify-center lg:gap-3 lg:px-6">
             {canAccessAdminMenu ? (
               <div className="relative hidden md:flex z-50" ref={adminMenuRef}>
                 <button
@@ -311,12 +311,12 @@ export function SiteHeader() {
             </Button>
             <button
               type="button"
-              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/70 bg-pure-white-soft text-slate-700 shadow-lg shadow-slate-300/50 transition hover:text-[#605CFF] lg:hidden"
+              className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-white/70 bg-pure-white-soft text-slate-700 shadow-sm shadow-slate-300/30 transition hover:text-[#605CFF] lg:hidden"
               onClick={() => setIsMobileNavOpen((open) => !open)}
               aria-label="打开菜单"
               aria-expanded={isMobileNavOpen}
             >
-              {isMobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {isMobileNavOpen ? <X className="h-3 w-3" /> : <Menu className="h-3 w-3" />}
             </button>
           </div>
         </div>
@@ -327,7 +327,7 @@ export function SiteHeader() {
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className="fixed inset-x-0 top-[82px] z-60 lg:hidden border-b border-white/60 bg-pure-white px-4 pb-6 pt-4 shadow-2xl shadow-indigo-500/10"
+            className="fixed inset-x-0 top-[82px] z-60 lg:hidden bg-pure-white px-4 pb-6 pt-4"
           >
             <MainNav direction="column" className="gap-3" onNavigate={handleMobileNavigate} />
             {canAccessAdminMenu ? (
