@@ -37,19 +37,19 @@ export function HeroSection({ expanded, onToggle }: HeroSectionProps) {
       <div className="relative mx-auto flex max-w-[1500px] flex-col gap-14 px-6 py-16 sm:py-20 lg:py-28">
         <div className="flex flex-col items-center gap-14 text-center">
           <motion.span
-            className="inline-flex items-center gap-5 rounded-full border border-white/40 bg-white/95 px-7 py-3 text-lg font-semibold text-[#4C54FF]"
+            className="inline-flex -mt-12 items-center gap-4 rounded-full border border-white/40 bg-white/95 px-5 py-2 text-[0.65rem] font-semibold text-[#4C54FF] sm:-mt-14 sm:text-sm lg:-mt-16 lg:px-6 lg:py-2.5 lg:text-base"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <Sparkles className="h-6 w-6" />
+            <Sparkles className="h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5" />
             企业自动化合规中枢
           </motion.span>
 
           <motion.h1
-            className="w-full max-w-6xl text-[3rem] font-semibold tracking-tight text-foreground sm:text-[3.2rem] lg:text-[3.8rem] lg:leading-[1.05]"
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
+            className="w-full max-w-6xl -mt-4 text-[3rem] font-semibold tracking-tight text-foreground sm:-mt-6 sm:text-[3.2rem] lg:text-[3.8rem] lg:leading-[1.05]"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
             <span className="block text-foreground">
               企业备案与材料交付全程自动化
             </span>

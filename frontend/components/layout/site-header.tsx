@@ -190,8 +190,8 @@ export function SiteHeader() {
                 src="/logo.png"
                 alt="企标邦"
                 priority
-                width={70}
-                height={22}
+                width={440}
+                height={140}
                 className="h-5 w-auto object-contain lg:h-11 lg:w-auto"
               />
             </Link>
