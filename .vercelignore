@@ -1,10 +1,8 @@
-# Ignore infrastructure-specific files and directories so Vercel only uploads the frontend app.
 backend/
 configs/
 docs/
 helm/
 scripts/
-portal-rendered.yaml
 docker-compose.yaml
 docker-compose.debug.yaml
 Dockerfile
