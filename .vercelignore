@@ -1,9 +1,0 @@
-backend/
-configs/
-docs/
-helm/
-scripts/
-docker-compose.yaml
-docker-compose.debug.yaml
-Dockerfile
-Dockerfile-production
