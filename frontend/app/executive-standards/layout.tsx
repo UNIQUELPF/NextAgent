@@ -8,20 +8,26 @@ export default function ExecutiveStandardsLayout({
   children: ReactNode;
 }) {
   return (
-    <div className="space-y-8">
-      <section className="border-b border-border/70 bg-background/80 py-8">
-        <div className="container space-y-6">
-          <div className="space-y-2">
-            <h1 className="text-2xl font-semibold tracking-tight">执行标准备案指挥中心</h1>
-            <p className="max-w-4xl text-sm text-muted-foreground">
-              按品类快速定位适用的国家标准、行业标准或团体标准，自动分配检测任务、
-              生成材料包并跟踪审批链路，帮助企业高效完成备案。
-            </p>
+    <div className="space-y-10">
+      <section className="py-8">
+        <div className="mx-auto max-w-[85vw] px-4 2xl:max-w-[1600px]">
+          <div className="relative overflow-hidden rounded-[32px] border border-white/60 p-8 shadow-[0_30px_90px_rgba(90,104,255,0.12)] backdrop-blur-xl">
+            <div className="relative space-y-6 text-center">
+              <div className="mx-auto max-w-3xl space-y-2">
+                <h1 className="text-3xl font-semibold tracking-tight">执行标准备案指挥中心</h1>
+                <p className="text-sm text-slate-600">
+                  按品类快速定位适用的国家标准、行业标准或团体标准，自动分配检测任务、
+                  生成材料包并跟踪审批链路，帮助企业高效完成备案。
+                </p>
+              </div>
+              <div className="mx-auto max-w-4xl">
+                <SectorNav />
+              </div>
+            </div>
           </div>
-          <SectorNav />
         </div>
       </section>
-      <div className="container pb-16">{children}</div>
+      <div className="mx-auto max-w-[85vw] px-4 pb-16 2xl:max-w-[1600px]">{children}</div>
     </div>
   );
 }

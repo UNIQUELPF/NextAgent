@@ -303,18 +303,22 @@ backend:
   resources: {}
 
 frontend:
-  image: laofa009/qbb:frontend-1106
+  image: laofa009/qbb:frontend-1107
   replicaCount: 1
   env:
     NEXT_PUBLIC_KRATOS_PUBLIC_URL: '{{ include "portal.publicURL" . }}/.ory'
   resources: {}
 
 migrations:
-  enabled: true
-  images:
-    portal: migrate/migrate:v4.15.2
-    kratos: laofa009/qbb:kratos-1106
-    keto: oryd/keto:v0.14.0
+  portal:
+    enabled: true
+    image: migrate/migrate:v4.15.2
+  kratos:
+    enabled: true
+    image: laofa009/qbb:kratos-1106
+  keto:
+    enabled: true
+    image: oryd/keto:v0.14.0
 
 seedAdmin:
   enabled: true

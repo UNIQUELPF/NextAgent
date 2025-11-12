@@ -16,6 +16,8 @@ spec:
       labels:
         app.kubernetes.io/component: oathkeeper
         {{- include "portal.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmaps.yaml") . | sha256sum }}
     spec:
       {{- if .Values.global.imagePullSecrets }}
       imagePullSecrets:

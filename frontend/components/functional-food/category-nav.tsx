@@ -24,16 +24,18 @@ export function FoodCategoryNav() {
   }, [query]);
 
   return (
-    <div className="space-y-4">
-      <div className="relative w-full sm:max-w-sm">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <input
-          type="search"
-          placeholder="搜索食品品类或关键词..."
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          className="w-full rounded-2xl border border-border/70 bg-background px-10 py-2 text-sm outline-none transition focus:border-secondary focus:ring-2 focus:ring-secondary/30"
-        />
+    <div className="space-y-6">
+      <div className="flex justify-center">
+        <div className="relative w-full max-w-lg">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            placeholder="搜索食品品类或关键词..."
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            className="w-full rounded-2xl border border-border/70 bg-white px-10 py-2 text-sm outline-none transition focus:border-secondary focus:ring-2 focus:ring-secondary/30"
+          />
+        </div>
       </div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {filtered.map((category) => {

@@ -1,0 +1,1744 @@
+---
+# Source: portal/templates/configmaps.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-portal-backend-config
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+data:
+  app.yaml: |
+    server:
+      address: ":8080"
+    
+    platform:
+      tenant_id: "00000000-0000-0000-0000-000000000001"
+      tenant_code: "platform"
+    
+    logging:
+      level: info
+      development: true
+    
+    database:
+      dsn: postgres://portal:portal@portal-portal-postgres:5432/portal?sslmode=disable
+      max_open_conns: 10
+      max_idle_conns: 5
+      conn_max_lifetime: 5m
+    
+    oathkeeper:
+      identity_header: X-Session-Subject
+      roles_header: X-Session-Roles
+      user_type_header: X-Session-User-Type
+      tenant_header: X-Tenant-Id
+    
+    keto:
+      read_remote: http://portal-portal-keto:4466
+      write_remote: http://portal-portal-keto:4467
+      namespace_prefix: Tenant
+      permission_relation: can
+      membership_relation: member
+      request_timeout: 2s
+    
+    kratos:
+      admin_url: http://portal-portal-kratos-admin:4434
+      public_url: http://portal-portal-kratos-public:4433
+      schema_id: portal
+      timeout: 2s
+      webhook:
+        username: kratos
+        password: kratos-hook
+---
+# Source: portal/templates/configmaps.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-portal-kratos-config
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+data:
+  kratos.yaml: |
+    version: v0.13.0
+    
+    dsn: "postgres://kratos:kratos@portal-portal-postgres:5432/kratos?sslmode=disable&max_conns=20"
+    
+    log:
+      level: info
+      format: json
+    
+    serve:
+      public:
+        base_url: "http://47.100.104.230/.ory/"
+        cors:
+          enabled: true
+          allowed_origins:
+            - "http://47.100.104.230"
+          allowed_methods:
+            - GET
+            - POST
+            - PUT
+            - PATCH
+            - DELETE
+            - OPTIONS
+          allowed_headers:
+            - Authorization
+            - Content-Type
+            - X-Requested-With
+            - Accept
+          exposed_headers:
+            - Content-Type
+          allow_credentials: true
+      admin:
+        base_url: "http://portal-portal-kratos-admin:4434/"
+    
+    secrets:
+      cookie:
+        - please-change-this-cookie-secret
+      cipher:
+        - 3HCf98UbOFiF7dR79Spl6HpwQYfLO1LF
+    
+    identity:
+      default_schema_id: portal
+      schemas:
+        - id: portal
+          url: file:///etc/config/kratos/identity.schema.json
+    
+    selfservice:
+      default_browser_return_url: "http://47.100.104.230"
+      allowed_return_urls:
+        - "http://47.100.104.230"
+        - "http://47.100.104.230/*"
+      flows:
+        login:
+          ui_url: "http://47.100.104.230/auth/login"
+          lifespan: 10m
+        registration:
+          ui_url: "http://47.100.104.230/auth/register"
+          lifespan: 10m
+          after:
+            code:
+              hooks:
+                - hook: session
+                - hook: web_hook
+                  config:
+                    url: "http://portal-portal-backend:8080/api/internal/hooks/kratos/registration"
+                    method: POST
+                    body: base64://ZnVuY3Rpb24oY3R4KSB7CiAgaWRlbnRpdHk6IGN0eC5pZGVudGl0eSwKfQo=
+                    headers:
+                      Content-Type: application/json
+                      Authorization: Basic a3JhdG9zOmtyYXRvcy1ob29r
+        settings:
+          ui_url: "http://47.100.104.230/account/settings"
+        verification:
+          enabled: true
+          use: code
+          ui_url: "http://47.100.104.230/auth/verify"
+        recovery:
+          enabled: true
+          ui_url: "http://47.100.104.230/auth/recover"
+          use: code
+      methods:
+        password:
+          enabled: true
+        code:
+          enabled: true
+          config:
+            lifespan: 5m
+            usage: login_registration_recovery
+        link:
+          enabled: false
+    
+    courier:
+      sms:
+        enabled: true
+        from: "+8610000000000"
+      template_override_path: /etc/config/kratos/courier/templates
+      channels:
+        - id: sms
+          type: http
+          request_config:
+            url: http://sms-mock:8080/messages
+            method: POST
+            body: base64://ZnVuY3Rpb24oY3R4KSB7CgogIFRvOiBjdHgucmVjaXBpZW50LAogIEJvZHk6IGN0eC5ib2R5LAoKfQ==
+            headers:
+              Content-Type: application/json
+    
+    session:
+      cookie:
+        same_site: Lax
+      lifespan: 720h
+    
+    feature_flags:
+      use_continue_with_transitions: true
+    
+    hashers:
+      argon2:
+        parallelism: 2
+        memory: 128MB
+        iterations: 2
+        salt_length: 16
+        key_length: 32
+  identity.schema.json: |
+    {
+      "$id": "https://next-agent-portal/schemas/identity.schema.json",
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "traits": {
+          "type": "object",
+          "properties": {
+            "phone": {
+              "type": "string",
+              "format": "tel",
+              "title": "Phone number",
+              "minLength": 3,
+              "ory.sh/kratos": {
+                "credentials": {
+                  "password": {
+                    "identifier": true
+                  },
+                  "code": {
+                    "identifier": true,
+                    "via": "sms"
+                  }
+                },
+                "verification": {
+                  "via": "sms"
+                }
+              }
+            },
+            "nickname": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32,
+              "title": "Nickname"
+            },
+            "username": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9._-]+$"
+            },
+            "user_type": {
+              "type": "string",
+              "enum": [
+                "external",
+                "internal"
+              ]
+            },
+            "tenant_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "roles": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9:_-]{3,64}$"
+              },
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "phone",
+            "nickname",
+            "user_type"
+          ]
+        }
+      }
+    }
+  __: |
+    您的登录验证码是 {{ .LoginCode }}。
+    
+  __: |
+    您的找回账号验证码是 {{ .Code }}。
+    
+  __: |
+    您的注册验证码是 {{ .RegistrationCode }}。
+    
+  __: |
+    您的验证验证码是 {{ .VerificationCode }}。
+---
+# Source: portal/templates/configmaps.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-portal-keto-config
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+data:
+  keto.yaml: |
+    version: v0.14.0
+    
+    dsn: "postgres://keto:keto@portal-portal-postgres:5432/keto?sslmode=disable"
+    
+    log:
+      level: info
+    
+    serve:
+      read:
+        host: 0.0.0.0
+        port: 4466
+      write:
+        host: 0.0.0.0
+        port: 4467
+    
+    namespaces:
+      location: file:///etc/config/keto/opl.ts
+  opl.ts: |
+    import { Namespace, SubjectSet, Context } from "@ory/keto-namespace-types"
+    
+    class User implements Namespace {
+      related: {}
+      permits = {}
+    }
+    
+    class Group implements Namespace {
+      related: {
+        parents: Group[]
+        members: (User | SubjectSet<Group, "members"> | SubjectSet<Tenant, "members"> | SubjectSet<Tenant, "editors"> | SubjectSet<Tenant, "admins">)[]
+        managers: (User | SubjectSet<Group, "managers"> | SubjectSet<Tenant, "members"> | SubjectSet<Tenant, "editors"> | SubjectSet<Tenant, "admins">)[]
+      }
+    
+      permits = {
+        view: (ctx: Context): boolean =>
+          this.related.members.includes(ctx.subject) ||
+          this.related.managers.includes(ctx.subject) ||
+          this.related.parents.traverse((p) => p.permits.view(ctx)),
+    
+        manage: (ctx: Context): boolean =>
+          this.related.managers.includes(ctx.subject) ||
+          this.related.parents.traverse((p) => p.permits.manage(ctx)),
+      }
+    }
+    
+    class Tenant implements Namespace {
+      related: {
+        members: (User | SubjectSet<Group, "members"> | SubjectSet<Group, "managers">)[]
+        viewers: (User | SubjectSet<Tenant, "members"> | SubjectSet<Group, "managers"> | SubjectSet<Group, "members">)[]
+        editors: (User | SubjectSet<Tenant, "members"> | SubjectSet<Group, "managers">)[]
+        admins: (User | SubjectSet<Tenant, "members">)[]
+      }
+    
+      permits = {
+        GET: (ctx: Context): boolean =>
+          this.related.viewers.includes(ctx.subject) ||
+          this.related.editors.includes(ctx.subject) ||
+          this.related.admins.includes(ctx.subject),
+    
+        HEAD: (ctx: Context): boolean =>
+          this.related.viewers.includes(ctx.subject) ||
+          this.related.editors.includes(ctx.subject) ||
+          this.related.admins.includes(ctx.subject),
+    
+        OPTIONS: (ctx: Context): boolean =>
+          this.related.viewers.includes(ctx.subject) ||
+          this.related.editors.includes(ctx.subject) ||
+          this.related.admins.includes(ctx.subject),
+    
+        POST: (ctx: Context): boolean =>
+          this.related.editors.includes(ctx.subject) ||
+          this.related.admins.includes(ctx.subject),
+    
+        PUT: (ctx: Context): boolean =>
+          this.related.editors.includes(ctx.subject) ||
+          this.related.admins.includes(ctx.subject),
+    
+        PATCH: (ctx: Context): boolean =>
+          this.related.editors.includes(ctx.subject) ||
+          this.related.admins.includes(ctx.subject),
+    
+        DELETE: (ctx: Context): boolean =>
+          this.related.admins.includes(ctx.subject),
+    
+        can: (ctx: Context): boolean =>
+          this.related.viewers.includes(ctx.subject) ||
+          this.related.editors.includes(ctx.subject) ||
+          this.related.admins.includes(ctx.subject),
+    
+        member: (ctx: Context): boolean =>
+          this.related.members.includes(ctx.subject),
+      }
+    }
+    
+    class Resource implements Namespace {
+      related: {
+        owners: User[]
+        viewers: (User | SubjectSet<Tenant, "viewers"> | SubjectSet<Group, "members">)[]
+        editors: (User | SubjectSet<Tenant, "editors"> | SubjectSet<Group, "managers">)[]
+      }
+    
+      permits = {
+        view: (ctx: Context): boolean =>
+          this.related.viewers.includes(ctx.subject) ||
+          this.related.editors.includes(ctx.subject) ||
+          this.related.owners.includes(ctx.subject),
+    
+        edit: (ctx: Context): boolean =>
+          this.related.editors.includes(ctx.subject) ||
+          this.related.owners.includes(ctx.subject),
+      }
+    }
+---
+# Source: portal/templates/configmaps.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-portal-oathkeeper-config
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yaml: |
+    log:
+      level: info
+      format: json
+    
+    serve:
+      proxy:
+        host: 0.0.0.0
+        port: 4456
+      api:
+        host: 0.0.0.0
+        port: 4457
+    
+    access_rules:
+      repositories:
+        - file:///etc/config/oathkeeper/rules.yaml
+      matching_strategy: regexp
+    
+    authenticators:
+      anonymous:
+        enabled: true
+      cookie_session:
+        enabled: true
+        config:
+          check_session_url: http://portal-portal-kratos-public:4433/sessions/whoami
+          preserve_path: true
+          subject_from: identity.id
+          extra_from: identity.traits
+          only:
+            - ory_kratos_session
+    
+    authorizers:
+      allow:
+        enabled: true
+      remote_json:
+        enabled: true
+        config:
+          remote: http://portal-portal-backend:8080/api/v1/authorize
+          payload: |
+            {}
+    
+    errors:
+      fallback:
+        - json
+      handlers:
+        json:
+          enabled: true
+          config:
+            verbose: true
+    
+    mutators:
+      noop:
+        enabled: true
+      header:
+        enabled: true
+        config:
+          headers: {}
+  rules.yaml: |
+    - id: kratos-public
+      priority: 300
+      match:
+        url: http://47.100.104.230/<\.ory/.*>
+        methods:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+      authenticators:
+        - handler: anonymous
+      authorizer:
+        handler: allow
+      mutators:
+        - handler: noop
+      upstream:
+        url: http://portal-portal-kratos-public:4433
+        strip_path: /.ory
+    
+    - id: backend-me
+      priority: 210
+      match:
+        url: http://47.100.104.230/api/v1/me
+        methods:
+          - GET
+      authenticators:
+        - handler: cookie_session
+      authorizer:
+        handler: allow
+      mutators:
+        - handler: header
+          config:
+            headers:
+              X-Session-Subject: "{{ .Subject }}"
+              X-Session-User-Type: "{{ with (index .Extra \"user_type\") }}{{ . }}{{ end }}"
+              X-Session-Roles: "{{ with (index .Extra \"roles\") }}{{ join \",\" . }}{{ end }}"
+              X-Tenant-Id: "{{ with (index .Extra \"tenant_id\") }}{{ . }}{{ end }}"
+      upstream:
+        url: http://portal-portal-backend:8080
+    
+    - id: backend-api
+      priority: 200
+      match:
+        url: http://47.100.104.230/<api/(?!v1/me$).+>
+        methods:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+      authenticators:
+        - handler: cookie_session
+      authorizer:
+        handler: remote_json
+        config:
+          remote: http://portal-portal-backend:8080/api/v1/authorize
+          payload: |
+            {
+              "object": "{{ print .MatchContext.URL.Path }}",
+              "action": "{{ print .MatchContext.Method }}",
+              "subject": "{{ .Subject }}",
+              "user_type": "{{ with (index .Extra \"user_type\") }}{{ . }}{{ end }}",
+              "tenant_id": "{{ with (index .Extra \"tenant_id\") }}{{ . }}{{ end }}",
+              "roles": "{{ with (index .Extra \"roles\") }}{{ join \",\" . }}{{ end }}"
+            }
+      mutators:
+        - handler: header
+          config:
+            headers:
+              X-Session-Subject: "{{ .Subject }}"
+              X-Session-User-Type: "{{ with (index .Extra \"user_type\") }}{{ . }}{{ end }}"
+              X-Session-Roles: "{{ with (index .Extra \"roles\") }}{{ join \",\" . }}{{ end }}"
+              X-Tenant-Id: "{{ with (index .Extra \"tenant_id\") }}{{ . }}{{ end }}"
+      upstream:
+        url: http://portal-portal-backend:8080
+    
+    - id: front-assets
+      priority: 150
+      match:
+        url: http://47.100.104.230/<_next/.*>
+        methods:
+          - GET
+          - HEAD
+          - OPTIONS
+      authenticators:
+        - handler: anonymous
+      authorizer:
+        handler: allow
+      mutators:
+        - handler: noop
+      upstream:
+        url: http://portal-portal-frontend:3000
+    
+    - id: front-root
+      priority: 140
+      match:
+        url: http://47.100.104.230/
+        methods:
+          - GET
+          - HEAD
+          - OPTIONS
+      authenticators:
+        - handler: anonymous
+      authorizer:
+        handler: allow
+      mutators:
+        - handler: noop
+      upstream:
+        url: http://portal-portal-frontend:3000
+    
+    - id: front-all
+      priority: 100
+      match:
+        url: http://47.100.104.230/<(?!_next/|api/|\.ory/).+>
+        methods:
+          - GET
+          - HEAD
+          - OPTIONS
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+      authenticators:
+        - handler: anonymous
+      authorizer:
+        handler: allow
+      mutators:
+        - handler: noop
+      upstream:
+        url: http://portal-portal-frontend:3000
+---
+# Source: portal/templates/configmaps.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-portal-portal-migrations
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+data:
+  000001_create_tenants.down.sql: |
+    DROP INDEX IF EXISTS tenants_created_at_idx;
+    DROP INDEX IF EXISTS tenants_name_idx;
+    DROP TRIGGER IF EXISTS trigger_set_tenants_updated_at ON tenants;
+    DROP FUNCTION IF EXISTS set_updated_at;
+    DROP TABLE IF EXISTS tenants;
+    
+  000001_create_tenants.up.sql: |
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    
+    CREATE TABLE tenants (
+        id UUID PRIMARY KEY,
+        code TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+        contact_name TEXT,
+        contact_phone TEXT,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    
+    CREATE OR REPLACE FUNCTION set_updated_at()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      NEW.updated_at = NOW();
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    CREATE TRIGGER trigger_set_tenants_updated_at
+    BEFORE UPDATE ON tenants
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    
+    CREATE INDEX tenants_name_idx ON tenants (LOWER(name));
+    CREATE INDEX tenants_created_at_idx ON tenants (created_at DESC);
+    
+  000002_create_groups.down.sql: |
+    DROP TRIGGER IF EXISTS trigger_set_group_members_updated_at ON group_members;
+    DROP TABLE IF EXISTS group_members;
+    
+    DROP TRIGGER IF EXISTS trigger_set_tenant_groups_updated_at ON tenant_groups;
+    DROP TABLE IF EXISTS tenant_groups;
+    
+  000002_create_groups.up.sql: |
+    CREATE TABLE tenant_groups (
+        id UUID PRIMARY KEY,
+        tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        code TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        parent_id UUID,
+        sort_order INT NOT NULL DEFAULT 0,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CONSTRAINT tenant_groups_unique_code UNIQUE (tenant_id, code),
+        CONSTRAINT tenant_groups_parent_fk FOREIGN KEY (parent_id) REFERENCES tenant_groups(id) ON DELETE RESTRICT
+    );
+    
+    CREATE INDEX tenant_groups_tenant_idx ON tenant_groups (tenant_id);
+    CREATE INDEX tenant_groups_parent_idx ON tenant_groups (parent_id);
+    
+    CREATE TRIGGER trigger_set_tenant_groups_updated_at
+    BEFORE UPDATE ON tenant_groups
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    
+    CREATE TABLE group_members (
+        group_id UUID NOT NULL REFERENCES tenant_groups(id) ON DELETE CASCADE,
+        identity_id UUID NOT NULL,
+        tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        display_name TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        title TEXT,
+        is_primary BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (group_id, identity_id)
+    );
+    
+    CREATE INDEX group_members_tenant_idx ON group_members (tenant_id);
+    CREATE INDEX group_members_identity_idx ON group_members (identity_id);
+    CREATE INDEX group_members_display_name_idx ON group_members (tenant_id, lower(display_name));
+    CREATE INDEX group_members_phone_idx ON group_members (tenant_id, phone);
+    
+    CREATE TRIGGER trigger_set_group_members_updated_at
+    BEFORE UPDATE ON group_members
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    
+  000003_seed_platform_tenant.down.sql: |
+    DELETE FROM tenant_groups WHERE tenant_id = '00000000-0000-0000-0000-000000000001';
+    DELETE FROM tenants WHERE id = '00000000-0000-0000-0000-000000000001';
+    
+  000003_seed_platform_tenant.up.sql: |
+    INSERT INTO tenants (id, code, name, status, metadata)
+    VALUES (
+        '00000000-0000-0000-0000-000000000001',
+        'platform',
+        '平台内部组织',
+        'active',
+        '{"internal": true}'::jsonb
+    )
+    ON CONFLICT (id) DO NOTHING;
+    
+  000004_create_roles.down.sql: |
+    DROP TRIGGER IF EXISTS trigger_set_roles_updated_at ON roles;
+    DROP TABLE IF EXISTS role_assignments;
+    DROP TABLE IF EXISTS role_permissions;
+    DROP TABLE IF EXISTS roles;
+    DROP TRIGGER IF EXISTS trigger_set_permissions_updated_at ON permissions;
+    DROP TABLE IF EXISTS permissions;
+    
+  000004_create_roles.up.sql: |
+    CREATE TABLE permissions (
+        code        TEXT PRIMARY KEY,
+        scope       TEXT NOT NULL CHECK (scope IN ('global', 'tenant', 'any')),
+        description TEXT NOT NULL,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    
+    CREATE TRIGGER trigger_set_permissions_updated_at
+        BEFORE UPDATE ON permissions
+        FOR EACH ROW
+        EXECUTE FUNCTION set_updated_at();
+    
+    INSERT INTO permissions (code, scope, description) VALUES
+        ('tenant.manage', 'global', '创建、编辑、停用租户'),
+        ('tenant.view', 'global', '查看租户列表与详情'),
+        ('role.manage', 'tenant', '管理角色定义与权限集'),
+        ('role.assign', 'tenant', '为成员分配 / 取消角色'),
+        ('role.view', 'tenant', '查看角色列表与详情'),
+        ('group.manage', 'tenant', '维护组织架构与部门属性'),
+        ('group.view', 'tenant', '查看组织架构与成员列表'),
+        ('group.member.manage', 'tenant', '调整部门成员、设置主职'),
+        ('user.invite', 'tenant', '邀请或创建内部成员'),
+        ('user.disable', 'tenant', '停用 / 启用内部成员'),
+        ('user.view', 'tenant', '查看内部成员信息')
+    ON CONFLICT (code) DO NOTHING;
+    
+    CREATE TABLE roles (
+        id          UUID PRIMARY KEY,
+        tenant_id   UUID REFERENCES tenants(id) ON DELETE CASCADE,
+        scope       TEXT NOT NULL CHECK (scope IN ('global', 'tenant')),
+        code        TEXT NOT NULL,
+        name        TEXT NOT NULL,
+        description TEXT,
+        metadata    JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        version     INTEGER NOT NULL DEFAULT 1,
+        CONSTRAINT roles_scope_tenant_check
+            CHECK (
+                (scope = 'tenant' AND tenant_id IS NOT NULL)
+                OR (scope = 'global' AND tenant_id IS NULL)
+            )
+    );
+    
+    CREATE UNIQUE INDEX roles_unique_global_code
+        ON roles (code)
+        WHERE tenant_id IS NULL;
+    
+    CREATE UNIQUE INDEX roles_unique_tenant_code
+        ON roles (tenant_id, code);
+    
+    CREATE TABLE role_permissions (
+        role_id         UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+        permission_code TEXT NOT NULL REFERENCES permissions(code) ON DELETE RESTRICT,
+        created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (role_id, permission_code)
+    );
+    
+    CREATE TABLE role_assignments (
+        role_id     UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+        identity_id UUID NOT NULL,
+        tenant_id   UUID REFERENCES tenants(id) ON DELETE CASCADE,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (role_id, identity_id)
+    );
+    
+    CREATE INDEX role_assignments_identity_idx
+        ON role_assignments (identity_id);
+    
+    CREATE TRIGGER trigger_set_roles_updated_at
+        BEFORE UPDATE ON roles
+        FOR EACH ROW
+        EXECUTE FUNCTION set_updated_at();
+---
+# Source: portal/templates/configmaps.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-portal-postgres-init
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+data:
+  init.sql: |
+    CREATE ROLE kratos LOGIN PASSWORD 'kratos';
+    CREATE ROLE keto LOGIN PASSWORD 'keto';
+    CREATE ROLE portal LOGIN PASSWORD 'portal';
+    
+    CREATE DATABASE kratos OWNER kratos;
+    CREATE DATABASE keto OWNER keto;
+    CREATE DATABASE portal OWNER portal;
+---
+# Source: portal/templates/configmaps.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-portal-seed-admin-script
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+data:
+  seed-platform-admin.sh: |
+    #!/bin/sh
+    set -euo pipefail
+    
+    python3 <<'PY'
+    import json
+    import os
+    import sys
+    import time
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+    
+    KRATOS_ADMIN_URL = os.environ.get("KRATOS_ADMIN_URL", 'http://portal-portal-kratos-admin:4434')
+    KETO_READ_URL = os.environ.get("KETO_READ_URL", 'http://portal-portal-keto:4466')
+    KETO_WRITE_URL = os.environ.get("KETO_WRITE_URL", 'http://portal-portal-keto:4467')
+    
+    ADMIN_IDENTIFIER = os.environ.get("PLATFORM_ADMIN_IDENTIFIER", "+8613800000000")
+    ADMIN_PASSWORD = os.environ.get("PLATFORM_ADMIN_PASSWORD", "ChangeMe123!")
+    ADMIN_NICKNAME = os.environ.get("PLATFORM_ADMIN_NICKNAME", "平台管理员")
+    ADMIN_TENANT_ID = os.environ.get("PLATFORM_ADMIN_TENANT_ID", "")
+    ADMIN_ROLES = os.environ.get("PLATFORM_ADMIN_ROLES", "platform_admin")
+    ADMIN_NAMESPACE = os.environ.get("PLATFORM_ADMIN_NAMESPACE", "Tenant")
+    
+    def info(message: str) -> None:
+        print(f"[seed-admin] {message}", flush=True)
+    
+    def wait_for(name: str, url: str, timeout: int = 600, interval: float = 2.0) -> None:
+        info(f"waiting for {name} at {url}")
+        start = time.time()
+        while True:
+            try:
+                with urllib.request.urlopen(url, timeout=5) as resp:
+                    if 200 <= resp.status < 300:
+                        return
+            except Exception:
+                pass
+            if time.time() - start > timeout:
+                info(f"timed out waiting for {name}")
+                sys.exit(1)
+            time.sleep(interval)
+    
+    def http_request(method: str, url: str, body: dict | None = None, headers: dict | None = None) -> tuple[int, str]:
+        data = None
+        req_headers = {"Content-Type": "application/json"}
+        if headers:
+            req_headers.update(headers)
+        if body is not None:
+            data = json.dumps(body).encode("utf-8")
+        request = urllib.request.Request(url, data=data, headers=req_headers, method=method.upper())
+        try:
+            with urllib.request.urlopen(request, timeout=10) as resp:
+                return resp.status, resp.read().decode("utf-8")
+        except urllib.error.HTTPError as err:
+            return err.code, err.read().decode("utf-8")
+        except urllib.error.URLError as err:
+            return 599, str(err)
+    
+    def get_identity_id(encoded_identifier: str) -> str | None:
+        url = f"{KRATOS_ADMIN_URL}/admin/identities?per_page=1&credentials_identifier={encoded_identifier}"
+        status, payload = http_request("GET", url)
+        if status != 200:
+            info(f"failed to query identities: HTTP {status}")
+            return None
+        try:
+            items = json.loads(payload)
+        except json.JSONDecodeError:
+            info("failed to decode identities response")
+            return None
+        if isinstance(items, list) and items:
+            first = items[0]
+            if isinstance(first, dict):
+                return first.get("id")
+        return None
+    
+    def create_identity(encoded_identifier: str) -> str | None:
+        roles = [r.strip() for r in ADMIN_ROLES.split(",") if r.strip()]
+        if not roles:
+            roles = ["platform_admin"]
+        payload = {
+            "schema_id": "portal",
+            "state": "active",
+            "traits": {
+                "phone": ADMIN_IDENTIFIER,
+                "nickname": ADMIN_NICKNAME,
+                "user_type": "internal",
+                "roles": roles,
+            },
+            "credentials": {
+                "password": {
+                    "config": {
+                        "password": ADMIN_PASSWORD,
+                    }
+                }
+            }
+        }
+        if ADMIN_TENANT_ID:
+            payload["traits"]["tenant_id"] = ADMIN_TENANT_ID
+    
+        status, response = http_request(
+            "POST",
+            f"{KRATOS_ADMIN_URL}/admin/identities",
+            body=payload,
+        )
+        if status not in (200, 201):
+            info(f"failed to create identity: HTTP {status} {response}")
+            return None
+        try:
+            data = json.loads(response)
+        except json.JSONDecodeError:
+            info("failed to decode identity creation response")
+            return None
+        identity_id = data.get("id")
+        if not identity_id:
+            info("identity creation response missing id")
+            return None
+        info(f"created platform admin identity: {identity_id}")
+        return identity_id
+    
+    def ensure_keto_relation(identity_id: str) -> None:
+        url = f"{KETO_READ_URL}/admin/relation-tuples?namespace={urllib.parse.quote(ADMIN_NAMESPACE)}&object=global:platform_admin&relation=members"
+        status, payload = http_request("GET", url)
+        if status == 200:
+            try:
+                data = json.loads(payload)
+            except json.JSONDecodeError:
+                data = {}
+            tuples = data.get("relation_tuples") or []
+            for entry in tuples:
+                if entry.get("subject_id") == identity_id:
+                    info("Keto relation already present for admin identity")
+                    return
+        payload = {
+            "namespace": ADMIN_NAMESPACE,
+            "object": "global:platform_admin",
+            "relation": "members",
+            "subject_id": identity_id,
+        }
+        status, response = http_request("PUT", f"{KETO_WRITE_URL}/admin/relation-tuples", body=payload)
+        if status not in (200, 201, 204):
+            info(f"failed to create Keto relation: HTTP {status} {response}")
+            sys.exit(1)
+        info("Keto relation created")
+    
+    def main() -> None:
+        wait_for("Kratos admin", f"{KRATOS_ADMIN_URL}/health/ready")
+        encoded_identifier = urllib.parse.quote(ADMIN_IDENTIFIER, safe="")
+    
+        identity_id = get_identity_id(encoded_identifier)
+        if identity_id:
+            info(f"platform admin identity already exists: {identity_id}")
+        else:
+            info("platform admin identity not found, creating")
+            identity_id = create_identity(encoded_identifier)
+            if not identity_id:
+                info("failed to create platform admin identity")
+                sys.exit(1)
+    
+        wait_for("Keto read", f"{KETO_READ_URL}/health/ready")
+        ensure_keto_relation(identity_id)
+        info("platform admin seed complete")
+    
+    if __name__ == "__main__":
+        main()
+    PY
+---
+# Source: portal/templates/backend.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: portal-portal-backend
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      name: http
+  selector:
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+---
+# Source: portal/templates/frontend.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: portal-portal-frontend
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      name: http
+  selector:
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+---
+# Source: portal/templates/keto.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: portal-portal-keto
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 4466
+      name: read
+    - port: 4467
+      name: write
+  selector:
+    app.kubernetes.io/component: keto
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+---
+# Source: portal/templates/kratos.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: portal-portal-kratos-public
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 4433
+      name: http
+  selector:
+    app.kubernetes.io/component: kratos
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+---
+# Source: portal/templates/kratos.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: portal-portal-kratos-admin
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 4434
+      name: http
+  selector:
+    app.kubernetes.io/component: kratos
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+---
+# Source: portal/templates/oathkeeper.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: portal-portal-oathkeeper
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 4456
+      name: proxy
+    - port: 4457
+      name: api
+  selector:
+    app.kubernetes.io/component: oathkeeper
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+---
+# Source: portal/templates/postgres.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: portal-portal-postgres
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      name: postgres
+  selector:
+    app.kubernetes.io/component: postgres
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+---
+# Source: portal/templates/backend.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-portal-backend
+  labels:
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+      app.kubernetes.io/name: portal
+      app.kubernetes.io/instance: portal
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: backend
+        app.kubernetes.io/name: portal
+        app.kubernetes.io/instance: portal
+      annotations:
+        checksum/config: 5063b2f57743309c157ee68f983a92e2d4c632ab52031fe8c20a31cf99274e1b
+        checksum/migrations: 851c809916c387b91b85d086a9a0faeaab2442e4dda8f08540221b33f5e7b967
+    spec:
+      initContainers:
+        - name: wait-for-portal-migrations
+          image: postgres:15
+          env:
+            - name: DATABASE_DSN
+              value: "postgres://portal:portal@portal-portal-postgres:5432/portal?sslmode=disable"
+          command:
+            - sh
+            - -c
+            - |
+              set -euo pipefail
+              until psql "$DATABASE_DSN" -Atqc "SELECT to_regclass('public.permissions') IS NOT NULL;" | grep -q t; do
+                echo "waiting for portal migrations..."
+                sleep 2
+              done
+      containers:
+        - name: backend
+          image: "laofa009/qbb:backend-1106"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: PORTAL__KETO__READ_REMOTE
+              value: "http://portal-portal-keto:4466"
+            - name: PORTAL__KETO__WRITE_REMOTE
+              value: "http://portal-portal-keto:4467"
+            - name: PORTAL__KETO__NAMESPACE_PREFIX
+              value: "Tenant"
+            - name: PORTAL__KETO__MEMBERSHIP_RELATION
+              value: "members"
+            - name: PORTAL__DATABASE__DSN
+              value: "postgres://portal:portal@portal-portal-postgres:5432/portal?sslmode=disable"
+            - name: PORTAL__SERVER__ADDRESS
+              value: ":8080"
+            - name: PORTAL__KRATOS__WEBHOOK__USERNAME
+              value: "kratos"
+            - name: PORTAL__KRATOS__WEBHOOK__PASSWORD
+              value: "kratos-hook"
+          volumeMounts:
+            - name: backend-config
+              mountPath: /etc/portal/configs/app.yaml
+              subPath: app.yaml
+      volumes:
+        - name: backend-config
+          configMap:
+            name: portal-portal-backend-config
+---
+# Source: portal/templates/frontend.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-portal-frontend
+  labels:
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: frontend
+      app.kubernetes.io/name: portal
+      app.kubernetes.io/instance: portal
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: frontend
+        app.kubernetes.io/name: portal
+        app.kubernetes.io/instance: portal
+    spec:
+      containers:
+        - name: frontend
+          image: "laofa009/qbb:frontend-1106"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: NEXT_PUBLIC_KRATOS_PUBLIC_URL
+              value: "http://47.100.104.230/.ory"
+---
+# Source: portal/templates/keto.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-portal-keto
+  labels:
+    app.kubernetes.io/component: keto
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: keto
+      app.kubernetes.io/name: portal
+      app.kubernetes.io/instance: portal
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: keto
+        app.kubernetes.io/name: portal
+        app.kubernetes.io/instance: portal
+      annotations:
+        checksum/config: 5063b2f57743309c157ee68f983a92e2d4c632ab52031fe8c20a31cf99274e1b
+        checksum/migrations: 851c809916c387b91b85d086a9a0faeaab2442e4dda8f08540221b33f5e7b967
+    spec:
+      initContainers:
+        - name: wait-for-keto-migrations
+          image: postgres:15
+          env:
+            - name: DATABASE_DSN
+              value: "postgres://keto:keto@portal-portal-postgres:5432/keto?sslmode=disable"
+          command:
+            - sh
+            - -c
+            - |
+              set -euo pipefail
+              until psql "$DATABASE_DSN" -Atqc "SELECT to_regclass('keto_relation_tuples') IS NOT NULL;" | grep -q t; do
+                echo "waiting for keto migrations..."
+                sleep 2
+              done
+      containers:
+        - name: keto
+          image: "oryd/keto:v0.14.0"
+          imagePullPolicy: IfNotPresent
+          args:
+            - serve
+            - --config
+            - /etc/config/keto/keto.yaml
+          ports:
+            - containerPort: 4466
+              name: read
+            - containerPort: 4467
+              name: write
+          env:
+            - name: DSN
+              value: postgres://keto:keto@portal-portal-postgres:5432/keto?sslmode=disable
+          volumeMounts:
+            - name: keto-config
+              mountPath: /etc/config/keto
+      volumes:
+        - name: keto-config
+          configMap:
+            name: portal-portal-keto-config
+            items:
+              - key: keto.yaml
+                path: keto.yaml
+              - key: opl.ts
+                path: opl.ts
+---
+# Source: portal/templates/kratos.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-portal-kratos
+  labels:
+    app.kubernetes.io/component: kratos
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: kratos
+      app.kubernetes.io/name: portal
+      app.kubernetes.io/instance: portal
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: kratos
+        app.kubernetes.io/name: portal
+        app.kubernetes.io/instance: portal
+      annotations:
+        checksum/config: 5063b2f57743309c157ee68f983a92e2d4c632ab52031fe8c20a31cf99274e1b
+        checksum/migrations: 851c809916c387b91b85d086a9a0faeaab2442e4dda8f08540221b33f5e7b967
+    spec:
+      initContainers:
+        - name: wait-for-kratos-migrations
+          image: postgres:15
+          env:
+            - name: DATABASE_DSN
+              value: "postgres://kratos:kratos@portal-portal-postgres:5432/kratos?sslmode=disable"
+          command:
+            - sh
+            - -c
+            - |
+              set -euo pipefail
+              until psql "$DATABASE_DSN" -Atqc "SELECT to_regclass('courier_messages') IS NOT NULL;" | grep -q t; do
+                echo "waiting for kratos migrations..."
+                sleep 2
+              done
+      containers:
+        - name: kratos
+          image: "laofa009/qbb:kratos-1106"
+          imagePullPolicy: IfNotPresent
+          args:
+            - serve
+            - --config
+            - /etc/config/kratos/kratos.yaml
+            - --watch-courier
+          ports:
+            - containerPort: 4433
+              name: public
+            - containerPort: 4434
+              name: admin
+          env:
+            - name: DSN
+              value: postgres://kratos:kratos@portal-portal-postgres:5432/kratos?sslmode=disable
+          volumeMounts:
+            - name: kratos-config
+              mountPath: /etc/config/kratos
+      volumes:
+        - name: kratos-config
+          configMap:
+            name: portal-portal-kratos-config
+            items:
+              - key: kratos.yaml
+                path: kratos.yaml
+              - key: identity.schema.json
+                path: identity.schema.json
+              - key: __
+                path: courier/templates/login_code/valid/sms.body.gotmpl
+              - key: __
+                path: courier/templates/recovery_code/valid/sms.body.gotmpl
+              - key: __
+                path: courier/templates/registration_code/valid/sms.body.gotmpl
+              - key: __
+                path: courier/templates/verification_code/valid/sms.body.gotmpl
+---
+# Source: portal/templates/oathkeeper.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-portal-oathkeeper
+  labels:
+    app.kubernetes.io/component: oathkeeper
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: oathkeeper
+      app.kubernetes.io/name: portal
+      app.kubernetes.io/instance: portal
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: oathkeeper
+        app.kubernetes.io/name: portal
+        app.kubernetes.io/instance: portal
+      annotations:
+        checksum/config: 5063b2f57743309c157ee68f983a92e2d4c632ab52031fe8c20a31cf99274e1b
+    spec:
+      containers:
+        - name: oathkeeper
+          image: "oryd/oathkeeper:v0.40.9"
+          imagePullPolicy: IfNotPresent
+          args:
+            - serve
+            - --config
+            - /etc/config/oathkeeper/config.yaml
+          ports:
+            - containerPort: 4456
+              name: proxy
+            - containerPort: 4457
+              name: api
+          volumeMounts:
+            - name: oathkeeper-config
+              mountPath: /etc/config/oathkeeper/config.yaml
+              subPath: config.yaml
+            - name: oathkeeper-config
+              mountPath: /etc/config/oathkeeper/rules.yaml
+              subPath: rules.yaml
+      volumes:
+        - name: oathkeeper-config
+          configMap:
+            name: portal-portal-oathkeeper-config
+---
+# Source: portal/templates/postgres.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: portal-portal-postgres
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  serviceName: portal-portal-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: postgres
+      app.kubernetes.io/name: portal
+      app.kubernetes.io/instance: portal
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: postgres
+        app.kubernetes.io/name: portal
+        app.kubernetes.io/instance: portal
+    spec:
+      nodeSelector:
+        role: db
+      tolerations:
+        - effect: NoSchedule
+          key: db
+          operator: Equal
+          value: "true"
+      containers:
+        - name: postgres
+          image: "postgres:15"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_USER
+              value: "postgres"
+            - name: POSTGRES_PASSWORD
+              value: "postgres"
+            - name: POSTGRES_DB
+              value: "postgres"
+          ports:
+            - containerPort: 5432
+              name: postgres
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: initdb
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: initdb
+          configMap:
+            name: portal-portal-postgres-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 40Gi
+---
+# Source: portal/templates/migrations.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: portal-portal-portal-migrate
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: portal
+        app.kubernetes.io/instance: portal
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:15
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h portal-portal-postgres -p 5432 -U postgres; do
+                echo "waiting for postgres..."
+                sleep 2
+              done
+          env:
+            - name: PGPASSWORD
+              value: "postgres"
+      containers:
+        - name: migrate
+          image: "migrate/migrate:v4.15.2"
+          args:
+            - "-path=/migrations"
+            - "-database"
+            - "postgres://portal:portal@portal-portal-postgres:5432/portal?sslmode=disable"
+            - up
+          volumeMounts:
+            - name: migrations
+              mountPath: /migrations
+      volumes:
+        - name: migrations
+          configMap:
+            name: portal-portal-portal-migrations
+---
+# Source: portal/templates/migrations.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: portal-portal-keto-migrate
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: portal
+        app.kubernetes.io/instance: portal
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:15
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h portal-portal-postgres -p 5432 -U postgres; do
+                echo "waiting for postgres..."
+                sleep 2
+              done
+          env:
+            - name: PGPASSWORD
+              value: "postgres"
+      containers:
+        - name: migrate
+          image: "oryd/keto:v0.14.0"
+          command:
+            - sh
+            - -c
+            - |
+              set -euo pipefail
+              keto migrate up --yes --config /etc/config/keto/keto.yaml
+          env:
+            - name: DSN
+              value: postgres://keto:keto@portal-portal-postgres:5432/keto?sslmode=disable
+          volumeMounts:
+            - name: keto-config
+              mountPath: /etc/config/keto
+      volumes:
+        - name: keto-config
+          configMap:
+            name: portal-portal-keto-config
+            items:
+              - key: keto.yaml
+                path: keto.yaml
+              - key: opl.ts
+                path: opl.ts
+---
+# Source: portal/templates/migrations.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: portal-portal-kratos-migrate
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: portal
+        app.kubernetes.io/instance: portal
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:15
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h portal-portal-postgres -p 5432 -U postgres; do
+                echo "waiting for postgres..."
+                sleep 2
+              done
+          env:
+            - name: PGPASSWORD
+              value: "postgres"
+      containers:
+        - name: migrate
+          image: "laofa009/qbb:kratos-1106"
+          args:
+            - migrate
+            - sql
+            - -e
+            - --yes
+          env:
+            - name: DSN
+              value: postgres://kratos:kratos@portal-portal-postgres:5432/kratos?sslmode=disable
+---
+# Source: portal/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: portal-portal-proxy
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  rules:
+    -
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: portal-portal-oathkeeper
+                port:
+                  name: proxy
+---
+# Source: portal/templates/seed-admin.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: portal-portal-seed-admin
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/instance: portal
+    app.kubernetes.io/version: 0.1.0
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: portal
+        app.kubernetes.io/instance: portal
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: seed-admin
+          image: "python:3.12-alpine"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "/scripts/seed-platform-admin.sh"]
+          env:
+            - name: KRATOS_ADMIN_URL
+              value: "http://portal-portal-kratos-admin:4434"
+            - name: KETO_READ_URL
+              value: "http://portal-portal-keto:4466"
+            - name: KETO_WRITE_URL
+              value: "http://portal-portal-keto:4467"
+            - name: PLATFORM_ADMIN_IDENTIFIER
+              value: "+8613800000000"
+            - name: PLATFORM_ADMIN_PASSWORD
+              value: "ChangeMe123!"
+            - name: PLATFORM_ADMIN_NICKNAME
+              value: "平台管理员"
+            - name: PLATFORM_ADMIN_TENANT_ID
+              value: "00000000-0000-0000-0000-000000000001"
+            - name: PLATFORM_ADMIN_ROLES
+              value: "platform_admin"
+            - name: PLATFORM_ADMIN_NAMESPACE
+              value: "Tenant"
+          volumeMounts:
+            - name: seed-script
+              mountPath: /scripts/seed-platform-admin.sh
+              subPath: seed-platform-admin.sh
+      volumes:
+        - name: seed-script
+          configMap:
+            name: portal-portal-seed-admin-script
+            defaultMode: 0755

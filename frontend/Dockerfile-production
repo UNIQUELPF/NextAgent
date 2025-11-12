@@ -1,24 +1,15 @@
-FROM node:20-bullseye AS base
+FROM node:20-alpine AS deps
 WORKDIR /app
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
-
-FROM base AS deps
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN corepack enable && pnpm install --frozen-lockfile
 
-FROM base AS build
-ENV NODE_ENV=production \
-  NEXT_TELEMETRY_DISABLED=1 \
-  NEXT_DISABLE_ESLINT=1 \
-  NEXT_DISABLE_TYPECHECK=1
+FROM node:20-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN pnpm run build
+RUN corepack enable && pnpm build
 
-FROM node:20-bullseye AS runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 

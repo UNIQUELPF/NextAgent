@@ -24,16 +24,18 @@ export function SectorNav() {
   }, [query]);
 
   return (
-    <div className="space-y-4">
-      <div className="relative w-full sm:max-w-sm">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <input
-          type="search"
-          placeholder="搜索品类或关键词..."
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          className="w-full rounded-2xl border border-border/70 bg-background px-10 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
-        />
+    <div className="space-y-6">
+      <div className="flex flex-col items-center gap-3 text-center">
+        <div className="relative w-full max-w-lg">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            placeholder="搜索品类或关键词..."
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            className="w-full rounded-2xl border border-border/70 bg-white px-10 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
+          />
+        </div>
       </div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {filtered.map((sector) => {
@@ -44,10 +46,10 @@ export function SectorNav() {
               key={sector.slug}
               href={href}
               className={cn(
-                "flex flex-col gap-1 rounded-2xl border p-4 transition hover:-translate-y-1",
+                "flex flex-col gap-1 rounded-2xl border bg-white p-4 transition hover:-translate-y-1",
                 isActive
-                  ? "border-primary/50 bg-primary/10 shadow-md"
-                  : "border-border/70 bg-background/60 hover:border-primary/40 hover:bg-primary/5",
+                  ? "border-primary/60 shadow-lg shadow-primary/10"
+                  : "border-border/70 hover:border-primary/40 hover:shadow-md",
               )}
             >
               <div className="flex items-center justify-between gap-2">

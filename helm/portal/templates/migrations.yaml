@@ -1,4 +1,4 @@
-{{- if .Values.migrations.enabled }}
+{{- if .Values.migrations.portal.enabled }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -35,7 +35,7 @@ spec:
       {{- end }}
       containers:
         - name: migrate
-          image: "{{ .Values.migrations.images.portal }}"
+          image: "{{ .Values.migrations.portal.image }}"
           args:
             - "-path=/migrations"
             - "-database"
@@ -50,6 +50,7 @@ spec:
             name: {{ include "portal.fullname" . }}-portal-migrations
 {{- end }}
 
+{{- if .Values.migrations.keto.enabled }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -87,7 +88,7 @@ spec:
       {{- end }}
       containers:
         - name: migrate
-          image: "{{ .Values.migrations.images.keto }}"
+          image: "{{ .Values.migrations.keto.image }}"
           command:
             - sh
             - -c
@@ -117,6 +118,9 @@ spec:
                 path: opl.ts
 {{- end }}
 
+{{- end }}
+
+{{- if .Values.migrations.kratos.enabled }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -154,7 +158,7 @@ spec:
       {{- end }}
       containers:
         - name: migrate
-          image: "{{ .Values.migrations.images.kratos }}"
+          image: "{{ .Values.migrations.kratos.image }}"
           args:
             - migrate
             - sql
@@ -163,3 +167,4 @@ spec:
           env:
             - name: DSN
               value: postgres://kratos:kratos@{{ include "portal.fullname" . }}-postgres:5432/kratos?sslmode=disable
+{{- end }}

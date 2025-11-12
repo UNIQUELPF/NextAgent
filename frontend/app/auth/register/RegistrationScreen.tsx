@@ -467,12 +467,12 @@ export function RegistrationScreen() {
                 autoComplete="one-time-code"
               />
             </label>
-            <button
-              type="button"
-              onClick={sendCode}
-              className="h-10 rounded-md border px-3 text-sm font-medium"
-              disabled={isSendingCode || !localPhone || resendCooldown > 0}
-            >
+          <button
+            type="button"
+            onClick={sendCode}
+            className="h-10 rounded-md border px-3 text-sm font-medium"
+            disabled={isSendingCode || !localPhone || resendCooldown > 0}
+          >
               {isSendingCode
                 ? "发送中..."
                 : codeSent && resendCooldown > 0
@@ -482,19 +482,19 @@ export function RegistrationScreen() {
                     : "发送验证码"}
             </button>
           </div>
-          <button
-            type="submit"
-            className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-            disabled={isVerifyingCode}
-          >
+        <button
+          type="submit"
+          className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+          disabled={isVerifyingCode}
+        >
             {isVerifyingCode ? "验证中..." : "验证并继续"}
           </button>
         </form>
       ) : (
-        <form
-          className="flex flex-col gap-4 rounded-lg border bg-background p-6 shadow-sm"
-          onSubmit={submitPassword}
-        >
+      <form
+        className="flex flex-col gap-4 rounded-lg border bg-background p-6 shadow-sm"
+        onSubmit={submitPassword}
+      >
           <div className="rounded-md border border-dashed border-border/60 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
             已验证手机号：<span className="font-medium text-foreground">{formatPhone(phone)}</span>
           </div>
@@ -533,11 +533,11 @@ export function RegistrationScreen() {
           {passwordError && password && (
             <p className="text-sm text-red-600">{passwordError}</p>
           )}
-          <button
-            type="submit"
-            className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-            disabled={isSubmittingPassword}
-          >
+        <button
+          type="submit"
+          className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+          disabled={isSubmittingPassword}
+        >
             {isSubmittingPassword ? "提交中..." : "提交注册"}
           </button>
         </form>

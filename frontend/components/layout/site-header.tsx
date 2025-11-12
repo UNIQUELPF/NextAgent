@@ -2,12 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, Settings, UserRound } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Menu, Settings, UserRound, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import type { Session } from "@ory/client";
 
 import { MainNav } from "./main-nav";
-import { ThemeToggle } from "./theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useHeaderVisibility } from "@/components/providers/header-visibility";
@@ -16,6 +17,8 @@ import { useCurrentUser } from "@/components/providers/current-user-provider";
 import { hasRole, isInternal } from "@/lib/auth";
 import { ADMIN_ACCESS_ROLES, ADMIN_SECTIONS } from "@/lib/admin-navigation";
 
+const MOBILE_SCROLL_RETRIES = 3;
+
 export function SiteHeader() {
   const { visible } = useHeaderVisibility();
   const { user: currentUser, loading: currentUserLoading } = useCurrentUser();
@@ -23,8 +26,22 @@ export function SiteHeader() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const adminMenuRef = useRef<HTMLDivElement | null>(null);
+  const pendingMobileScrollAttemptsRef = useRef(0);
+  const pathname = usePathname();
+
+  const scrollToTop = useCallback(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const root = document.scrollingElement || document.documentElement || document.body;
+    if (root) {
+      root.scrollTop = 0;
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,6 +66,33 @@ export function SiteHeader() {
       cancelled = true;
     };
   }, [visible]);
+
+  useEffect(() => {
+    setIsMobileNavOpen(false);
+    if (pendingMobileScrollAttemptsRef.current > 0) {
+      pendingMobileScrollAttemptsRef.current -= 1;
+      if (typeof window.requestAnimationFrame === "function") {
+        window.requestAnimationFrame(() => {
+          scrollToTop();
+          window.requestAnimationFrame(scrollToTop);
+        });
+      } else {
+        scrollToTop();
+      }
+    }
+  }, [pathname, scrollToTop]);
+
+  useEffect(() => {
+    if (!isMobileNavOpen) {
+      document.body.style.removeProperty("overflow");
+      return;
+    }
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [isMobileNavOpen]);
 
   useEffect(() => {
     if (!isMenuOpen && !isAdminMenuOpen) {
@@ -122,6 +166,11 @@ export function SiteHeader() {
     }
   }, [isLoggingOut]);
 
+  const handleMobileNavigate = useCallback(() => {
+    pendingMobileScrollAttemptsRef.current = MOBILE_SCROLL_RETRIES;
+    setIsMobileNavOpen(false);
+  }, []);
+
   const canAccessAdminMenu = true;
 
   if (!visible) {
@@ -129,179 +178,217 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/80 bg-background/95 backdrop-blur">
-      <div className="container flex h-16 items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <Link
-            href="/"
-            className="flex items-center gap-3 rounded-lg border border-border/60 px-3 py-1.5"
-          >
-            <Image
-              src="/logo.png"
-              alt="企标邦"
-              priority
-              width={112}
-              height={32}
-              className="h-6 w-auto"
-            />
-          </Link>
-          <div className="hidden lg:block">
-            <MainNav />
+    <header className="sticky top-0 z-50">
+      <div className="relative overflow-visible border-b border-border/60 bg-pure-white shadow-[0_12px_35px_rgba(17,17,17,0.08)]">
+        <div className="mx-auto flex w-full max-w-[3600px] items-center justify-center gap-14 px-12 py-4 lg:px-16">
+          <div className="flex flex-[0.4] items-center justify-start gap-2 pr-6 lg:justify-end">
+            <Link
+              href="/"
+              className="logo-soft-shadow relative flex items-center rounded-2xl border border-white/50 bg-pure-white-soft px-3 py-1.5 shadow-inner shadow-white/40"
+            >
+              <Image
+                src="/logo.png"
+                alt="企标邦"
+                priority
+                width={180}
+                height={56}
+                className="h-11 w-auto object-contain"
+              />
+            </Link>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          {canAccessAdminMenu ? (
-            <div className="hidden items-center gap-2 md:flex">
-              <div className="relative" ref={adminMenuRef}>
+          <div className="hidden flex-[1.2] justify-center px-12 lg:flex lg:justify-center lg:ml-12 lg:mr-0">
+            <MainNav className="w-full max-w-[2350px] shrink-0" />
+          </div>
+          <div className="flex flex-[0.6] items-center justify-end gap-3 px-6 lg:justify-center lg:pl-4">
+            {canAccessAdminMenu ? (
+              <div className="relative hidden md:flex z-50" ref={adminMenuRef}>
                 <button
                   type="button"
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium transition-colors",
-                    "hover:bg-muted hover:text-foreground"
+                    "inline-flex h-12 items-center gap-2 rounded-full border border-slate-200/60 px-5 text-base font-semibold text-slate-900 transition hover:border-[#5A68FF]/60 hover:text-[#5A68FF]"
                   )}
                   onClick={() => setIsAdminMenuOpen((open) => !open)}
                   aria-expanded={isAdminMenuOpen}
                   aria-haspopup="menu"
                   aria-label="管理控制台"
                 >
-                  <Settings className="h-4 w-4" />
-                  <span className="sr-only">管理控制台</span>
+                  <Settings className="h-5 w-5" />
+                  控制台
                 </button>
-                {isAdminMenuOpen ? (
-                  <div
-                    role="menu"
-                    className="absolute right-0 mt-2 w-48 rounded-md border border-border/80 bg-popover shadow-lg focus:outline-none"
-                  >
-                    {ADMIN_SECTIONS.map((item) => (
-                      <Link
-                        key={item.href}
-                        role="menuitem"
-                        href={item.href}
-                        className="block px-3 py-2 text-sm text-foreground hover:bg-muted"
-                        onClick={() => setIsAdminMenuOpen(false)}
-                      >
-                        {item.label}
-                      </Link>
-                    ))}
-                  </div>
-                ) : null}
+                <AnimatePresence>
+                  {isAdminMenuOpen ? (
+                    <motion.div
+                      role="menu"
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      className="absolute right-0 top-[calc(100%+8px)] z-60 w-48 rounded-2xl border border-white/80 bg-pure-white p-2 text-sm font-semibold text-slate-700 shadow-2xl shadow-[#5A68FF]/15"
+                    >
+                      {ADMIN_SECTIONS.map((item) => (
+                        <Link
+                          key={item.href}
+                          role="menuitem"
+                          href={item.href}
+                          className="block rounded-xl px-3 py-2 hover:bg-slate-100"
+                          onClick={() => setIsAdminMenuOpen(false)}
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
               </div>
-            </div>
-          ) : null}
-          {session ? (
-            <div className="hidden items-center gap-2 md:flex">
-              <div className="relative" ref={menuRef}>
+            ) : null}
+            {session ? (
+              <div className="relative hidden items-center md:flex z-50" ref={menuRef}>
                 <button
                   type="button"
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium transition-colors",
-                    "hover:bg-muted hover:text-foreground"
+                    "inline-flex h-12 items-center gap-2 rounded-full border border-slate-200/60 px-5 text-base font-semibold text-slate-900 transition hover:border-[#5A68FF]/60 hover:text-[#5A68FF]"
                   )}
                   onClick={() => setIsMenuOpen((open) => !open)}
                   aria-expanded={isMenuOpen}
                   aria-haspopup="menu"
                 >
-                  <UserRound className="h-4 w-4" />
+                  <UserRound className="h-5 w-5" />
                   {displayLabel || "账户"}
                 </button>
-                {isMenuOpen ? (
-                  <div
-                    role="menu"
-                    className="absolute right-0 mt-2 w-44 rounded-md border border-border/80 bg-popover shadow-lg focus:outline-none"
-                  >
-                    <Link
-                      role="menuitem"
-                      href="/account/settings?section=profile"
-                      className="block px-3 py-2 text-sm text-foreground hover:bg-muted"
-                      onClick={() => setIsMenuOpen(false)}
+                <AnimatePresence>
+                  {isMenuOpen ? (
+                    <motion.div
+                      role="menu"
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      className="absolute right-0 top-[calc(100%+8px)] z-60 w-48 rounded-2xl border border-white/80 bg-pure-white p-2 text-sm font-semibold text-slate-700 shadow-2xl shadow-[#5A68FF]/15"
                     >
-                      个人信息
-                    </Link>
-                    <Link
-                      role="menuitem"
-                      href="/account/settings?section=password"
-                      className="block px-3 py-2 text-sm text-foreground hover:bg-muted"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      更改密码
-                    </Link>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="flex w-full px-3 py-2 text-left text-sm text-destructive hover:bg-muted"
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        handleLogout();
-                      }}
-                      disabled={isLoggingOut}
-                    >
-                      {isLoggingOut ? "退出中..." : "退出登录"}
-                    </button>
-                  </div>
-                ) : null}
+                      <Link
+                        role="menuitem"
+                        href="/account/settings?section=profile"
+                        className="block rounded-xl px-3 py-2 hover:bg-slate-100"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        个人信息
+                      </Link>
+                      <Link
+                        role="menuitem"
+                        href="/account/settings?section=password"
+                        className="block rounded-xl px-3 py-2 hover:bg-slate-100"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        更改密码
+                      </Link>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="flex w-full rounded-xl px-3 py-2 text-left text-destructive hover:bg-red-50"
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          handleLogout();
+                        }}
+                        disabled={isLoggingOut}
+                      >
+                        {isLoggingOut ? "退出中..." : "退出登录"}
+                      </button>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
               </div>
-            </div>
-          ) : (
-            <Link
-              href="/auth/login"
-              className={cn(
-                "hidden md:inline-flex",
-                "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                "hover:bg-muted hover:text-foreground"
-              )}
+            ) : (
+              <Link
+                href="/auth/login"
+                className="hidden rounded-full border border-slate-200/60 px-5 py-2.5 text-base font-semibold text-slate-900 transition hover:border-[#5A68FF]/60 hover:text-[#5A68FF] md:inline-flex"
+              >
+                登录
+              </Link>
+            )}
+            <Button
+              size="lg"
+              className="hidden rounded-full bg-primary px-6 py-2.5 text-base font-semibold text-primary-foreground shadow-md shadow-primary/25 lg:inline-flex transition hover:bg-primary/90"
             >
-              登录
-            </Link>
-          )}
-          <Button size="sm">创建任务</Button>
-          <Button variant="ghost" size="sm" className="lg:hidden">
-            <Menu className="h-4 w-4" />
-          </Button>
+              创建任务
+            </Button>
+            <button
+              type="button"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/70 bg-pure-white-soft text-slate-700 shadow-lg shadow-slate-300/50 transition hover:text-[#605CFF] lg:hidden"
+              onClick={() => setIsMobileNavOpen((open) => !open)}
+              aria-label="打开菜单"
+              aria-expanded={isMobileNavOpen}
+            >
+              {isMobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          </div>
         </div>
       </div>
-      <div className="border-t border-border/60 bg-background/90 px-4 py-2 lg:hidden">
-        <MainNav />
-        {canAccessAdminMenu ? (
-          <div className="mt-2 flex flex-col gap-2">
-            {ADMIN_SECTIONS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="inline-flex w-full items-center justify-start rounded-md border border-border px-3 py-2 text-sm font-medium"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        ) : null}
-        {session ? (
-          <div className="mt-2 flex flex-col gap-2">
-            <Link
-              href="/account/settings?section=profile"
-              className="inline-flex w-full items-center justify-start rounded-md border border-border px-3 py-2 text-sm font-medium"
-            >
-              个人信息
-            </Link>
-            <Link
-              href="/account/settings?section=password"
-              className="inline-flex w-full items-center justify-start rounded-md border border-border px-3 py-2 text-sm font-medium"
-            >
-              更改密码
-            </Link>
-            <Button variant="outline" size="sm" onClick={handleLogout} disabled={isLoggingOut}>
-              {isLoggingOut ? "退出中..." : "退出登录"}
-            </Button>
-          </div>
-        ) : (
-          <Link
-            href="/auth/login"
-            className="mt-2 inline-flex w-full items-center justify-center rounded-md border border-border px-3 py-2 text-sm font-medium"
+      <AnimatePresence>
+        {isMobileNavOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="fixed inset-x-0 top-[82px] z-60 lg:hidden border-b border-white/60 bg-pure-white px-4 pb-6 pt-4 shadow-2xl shadow-indigo-500/10"
           >
-            登录
-          </Link>
+            <MainNav direction="column" className="gap-3" onNavigate={handleMobileNavigate} />
+            {canAccessAdminMenu ? (
+              <div className="mt-4 space-y-2">
+                {ADMIN_SECTIONS.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="block rounded-2xl border border-slate-200/70 bg-pure-white px-4 py-2 text-sm font-semibold text-slate-700"
+                    onClick={handleMobileNavigate}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+            <div className="mt-4 space-y-2">
+              {session ? (
+                <>
+                  <Link
+                    href="/account/settings?section=profile"
+                    className="block rounded-2xl border border-slate-200/70 bg-pure-white px-4 py-2 text-sm font-semibold text-slate-700"
+                    onClick={handleMobileNavigate}
+                  >
+                    个人信息
+                  </Link>
+                  <Link
+                    href="/account/settings?section=password"
+                    className="block rounded-2xl border border-slate-200/70 bg-pure-white px-4 py-2 text-sm font-semibold text-slate-700"
+                    onClick={handleMobileNavigate}
+                  >
+                    更改密码
+                  </Link>
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-2xl border-slate-200/80"
+                    onClick={() => {
+                      handleMobileNavigate();
+                      handleLogout();
+                    }}
+                    disabled={isLoggingOut}
+                  >
+                    {isLoggingOut ? "退出中..." : "退出登录"}
+                  </Button>
+                </>
+              ) : (
+                <Link
+                  href="/auth/login"
+                  className="block rounded-2xl border border-slate-200/70 bg-pure-white px-4 py-2 text-center text-sm font-semibold text-slate-700"
+                  onClick={handleMobileNavigate}
+                >
+                  登录
+                </Link>
+              )}
+              <Button className="w-full rounded-2xl bg-primary py-3 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90">
+                创建任务
+              </Button>
+            </div>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
     </header>
   );
 }
