@@ -67,6 +67,14 @@ type Config struct {
 			Password string `koanf:"password"`
 		} `koanf:"webhook"`
 	} `koanf:"kratos"`
+
+	Agents struct {
+		Ruanzhu struct {
+			BaseURL  string        `koanf:"base_url"`
+			APIToken string        `koanf:"api_token"`
+			Timeout  time.Duration `koanf:"timeout"`
+		} `koanf:"ruanzhu"`
+	} `koanf:"agents"`
 }
 
 // Load reads configuration from disk and overlays environment variables.

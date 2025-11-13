@@ -146,6 +146,8 @@ services:
         condition: service_started
       portal-migrate:
         condition: service_completed_successfully
+      ruanzhu-agent:
+        condition: service_started
     environment:
       PORTAL__KETO__READ_REMOTE: http://keto:4466
       PORTAL__KETO__WRITE_REMOTE: http://keto:4467
@@ -158,12 +160,15 @@ services:
       PORTAL__SERVER__ADDRESS: ":8080"
       PORTAL__KRATOS__WEBHOOK__USERNAME: kratos
       PORTAL__KRATOS__WEBHOOK__PASSWORD: kratos-hook
+      PORTAL__AGENTS__RUANZHU__BASE_URL: http://ruanzhu-agent:5888
     ports:
       - "8080:8080"
 
   frontend:
     build:
       context: ./frontend
+      args:
+        NEXT_PUBLIC_KRATOS_PUBLIC_URL: http://localhost:4456/.ory
     depends_on:
       - kratos
       - oathkeeper
@@ -172,8 +177,33 @@ services:
     ports:
       - "3000:3000"
 
+  ruanzhu-agent:
+    build:
+      context: ./agents/ruanzhuV3
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ruanzhu
+      DB_USER: ruanzhu
+      DB_PASSWORD: ruanzhu
+      MODEL_NAME: ${RUANZHU_MODEL_NAME:-qwen-plus}
+      BASE_URL: ${RUANZHU_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      QWEN_API_KEY: ${RUANZHU_QWEN_API_KEY:-}
+    command:
+      - python
+      - main.py
+      - --api
+    volumes:
+      - ruanzhu-agent-tasks:/app/tasks_output
+      - ruanzhu-agent-status:/app/task_status
+    ports:
+      - "5888:5888"
+
   seed-platform-admin:
-    image: alpine:3.20
+    image: python:3.12-alpine
     depends_on:
       kratos:
         condition: service_started
@@ -208,3 +238,5 @@ services:
 
 volumes:
   portal-postgres:
+  ruanzhu-agent-tasks:
+  ruanzhu-agent-status:

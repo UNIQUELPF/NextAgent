@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"github.com/laofa009/next-agent-portal/backend/internal/agents/ruanzhu"
 	"github.com/laofa009/next-agent-portal/backend/internal/config"
 	"github.com/laofa009/next-agent-portal/backend/internal/keto"
 	"github.com/laofa009/next-agent-portal/backend/internal/kratos"
@@ -27,6 +28,7 @@ type Server struct {
 	logger           *zap.Logger
 	ketoClient       *keto.Client
 	kratosClient     *kratos.Client
+	ruanzhuClient    *ruanzhu.Client
 	tenantRepo       *storage.TenantRepository
 	groupRepo        *storage.GroupRepository
 	roleRepo         *storage.RoleRepository
@@ -38,7 +40,7 @@ type Server struct {
 }
 
 // New constructs the HTTP server with middleware and routes.
-func New(cfg *config.Config, logger *zap.Logger, ketoClient *keto.Client, kratosClient *kratos.Client, tenantRepo *storage.TenantRepository, groupRepo *storage.GroupRepository, roleRepo *storage.RoleRepository, permissionRepo *storage.PermissionRepository) *Server {
+func New(cfg *config.Config, logger *zap.Logger, ketoClient *keto.Client, kratosClient *kratos.Client, ruanzhuClient *ruanzhu.Client, tenantRepo *storage.TenantRepository, groupRepo *storage.GroupRepository, roleRepo *storage.RoleRepository, permissionRepo *storage.PermissionRepository) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 
@@ -62,6 +64,7 @@ func New(cfg *config.Config, logger *zap.Logger, ketoClient *keto.Client, kratos
 		logger:           logger,
 		ketoClient:       ketoClient,
 		kratosClient:     kratosClient,
+		ruanzhuClient:    ruanzhuClient,
 		tenantRepo:       tenantRepo,
 		groupRepo:        groupRepo,
 		roleRepo:         roleRepo,
@@ -166,6 +169,7 @@ func (s *Server) registerRoutes() {
 	s.registerGroupRoutes(v1)
 	s.registerRoleRoutes(v1)
 	s.registerPermissionRoutes(v1)
+	s.registerRuanzhuRoutes(v1)
 }
 
 func resolveNamespaceAndObject(prefix, tenantID, overrideNamespace, object string) (string, string) {

@@ -7,6 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/laofa009/next-agent-portal/backend/internal/agents/ruanzhu"
 	"github.com/laofa009/next-agent-portal/backend/internal/config"
 	"github.com/laofa009/next-agent-portal/backend/internal/keto"
 	"github.com/laofa009/next-agent-portal/backend/internal/kratos"
@@ -67,13 +68,23 @@ func main() {
 	}
 	defer pool.Close()
 
+	ruanzhuClient, err := ruanzhu.NewClient(ruanzhu.Options{
+		BaseURL:  cfg.Agents.Ruanzhu.BaseURL,
+		APIToken: cfg.Agents.Ruanzhu.APIToken,
+		Timeout:  cfg.Agents.Ruanzhu.Timeout,
+	})
+	if err != nil {
+		logger.Fatal("init ruanzhu client", zap.Error(err))
+		os.Exit(1)
+	}
+
 	queries := sqldb.New(pool)
 	tenantRepo := storage.NewTenantRepository(queries)
 	groupRepo := storage.NewGroupRepository(queries)
 	roleRepo := storage.NewRoleRepository(pool, queries)
 	permissionRepo := storage.NewPermissionRepository(queries)
 
-	srv := server.New(cfg, logger, ketoClient, kratosClient, tenantRepo, groupRepo, roleRepo, permissionRepo)
+	srv := server.New(cfg, logger, ketoClient, kratosClient, ruanzhuClient, tenantRepo, groupRepo, roleRepo, permissionRepo)
 
 	if err := srv.Run(); err != nil {
 		logger.Fatal("server stopped with error", zap.Error(err))

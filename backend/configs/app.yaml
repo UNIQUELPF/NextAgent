@@ -36,3 +36,9 @@ kratos:
   webhook:
     username: kratos
     password: kratos-hook
+
+agents:
+  ruanzhu:
+    base_url: http://ruanzhu-agent:5888
+    timeout: 30s
+    api_token: ""
