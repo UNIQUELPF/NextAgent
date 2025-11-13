@@ -28,7 +28,7 @@ type Props = {
 
 export function DisinfectantDashboard({ config }: Props) {
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 text-base sm:text-lg">
       <Hero config={config} />
       <Metrics config={config} />
       <div className="grid gap-6 xl:grid-cols-[1.4fr,1fr]">
@@ -58,12 +58,12 @@ function Hero({ config }: Props) {
         transition={{ duration: 0.45, ease: "easeOut" }}
         className="space-y-5"
       >
-        <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+        <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-base font-medium text-primary">
           <Archive className="h-3.5 w-3.5" />
           消字号审批指挥
         </span>
-        <h2 className="text-3xl font-semibold leading-tight">{config.heroTitle}</h2>
-        <p className="max-w-3xl text-base text-muted-foreground">
+        <h2 className="text-4xl font-semibold leading-tight">{config.heroTitle}</h2>
+        <p className="max-w-3xl text-lg text-muted-foreground">
           {config.heroDescription}
         </p>
         <div className="flex flex-wrap items-center gap-3">
@@ -84,7 +84,7 @@ function Metrics({ config }: Props) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">关键指标</h3>
+        <h3 className="text-xl font-semibold">关键指标</h3>
         <Button variant="ghost" size="sm">
           导出报表
         </Button>
@@ -98,9 +98,9 @@ function Metrics({ config }: Props) {
             transition={{ delay: index * 0.08, duration: 0.35 }}
             className="rounded-2xl border border-border/70 bg-background/75 p-6 shadow-sm"
           >
-            <p className="text-sm text-muted-foreground">{metric.title}</p>
-            <p className="mt-3 text-3xl font-semibold">{metric.value}</p>
-            <p className="mt-2 text-xs font-medium text-primary">{metric.trend}</p>
+            <p className="text-base text-muted-foreground">{metric.title}</p>
+            <p className="mt-3 text-4xl font-semibold">{metric.value}</p>
+            <p className="mt-2 text-base font-medium text-primary">{metric.trend}</p>
           </motion.div>
         ))}
       </div>
@@ -113,8 +113,8 @@ function Approvals({ config }: Props) {
     <section className="rounded-3xl border border-border/70 bg-background/75 p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">批文要件清单</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h3 className="text-xl font-semibold">批文要件清单</h3>
+          <p className="mt-1 text-base text-muted-foreground">
             按国家/省级药监局要求自动列出必需材料。
           </p>
         </div>
@@ -134,14 +134,14 @@ function Approvals({ config }: Props) {
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <span className="rounded-full bg-primary/12 px-2 py-0.5 text-xs font-medium text-primary">
+                <span className="rounded-full bg-primary/12 px-2 py-0.5 text-base font-medium text-primary">
                   {item.authority}
                 </span>
-                <h4 className="mt-2 text-sm font-semibold">{item.document}</h4>
+                <h4 className="mt-2 text-base font-semibold">{item.document}</h4>
               </div>
-              <span className="text-xs text-muted-foreground">更新 {item.updatedAt}</span>
+              <span className="text-base text-muted-foreground">更新 {item.updatedAt}</span>
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">{item.requirement}</p>
+            <p className="mt-2 text-base text-muted-foreground">{item.requirement}</p>
           </motion.div>
         ))}
       </div>
@@ -160,8 +160,8 @@ function Compliance({ checks }: { checks: ComplianceCheck[] }) {
     <section className="rounded-3xl border border-border/70 bg-background/75 p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">合规审查面板</h3>
-          <p className="mt-1 text-sm text-muted-foreground">监控重点合规项，自动提示风险。</p>
+          <h3 className="text-xl font-semibold">合规审查面板</h3>
+          <p className="mt-1 text-base text-muted-foreground">监控重点合规项，自动提示风险。</p>
         </div>
         <Button variant="ghost" size="sm">
           导出检查表
@@ -175,7 +175,7 @@ function Compliance({ checks }: { checks: ComplianceCheck[] }) {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.06, duration: 0.3 }}
             className={cn(
-              "flex flex-col gap-1 rounded-2xl border px-4 py-3 text-sm transition",
+              "flex flex-col gap-1 rounded-2xl border px-4 py-3 text-base transition",
               complianceColor[check.status],
             )}
           >
@@ -184,9 +184,9 @@ function Compliance({ checks }: { checks: ComplianceCheck[] }) {
                 <ShieldCheck className="h-4 w-4" />
                 {check.item}
               </span>
-              <span className="text-xs font-medium">{check.status}</span>
+              <span className="text-base font-medium">{check.status}</span>
             </div>
-            <p className="text-xs">{check.detail}</p>
+            <p className="text-base">{check.detail}</p>
           </motion.div>
         ))}
       </div>
@@ -199,8 +199,8 @@ function Pipeline({ stages }: { stages: DisinfectantConfig["pipeline"] }) {
     <section className="rounded-3xl border border-border/70 bg-background/75 p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">审批流水线</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h3 className="text-xl font-semibold">审批流水线</h3>
+          <p className="mt-1 text-base text-muted-foreground">
             追踪检验、资料、提交等关键节点的进度。
           </p>
         </div>
@@ -223,17 +223,17 @@ function Pipeline({ stages }: { stages: DisinfectantConfig["pipeline"] }) {
             <div className="flex-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <p className="text-xs font-medium text-primary/70">{stage.status}</p>
-                  <h4 className="mt-1 text-base font-semibold">{stage.title}</h4>
+                  <p className="text-base font-medium text-primary/70">{stage.status}</p>
+                  <h4 className="mt-1 text-lg font-semibold">{stage.title}</h4>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-base text-muted-foreground">
                     {stage.owner}
                   </span>
-                  <span className="text-xs text-muted-foreground">ETA {stage.eta}</span>
+                  <span className="text-base text-muted-foreground">ETA {stage.eta}</span>
                 </div>
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">{stage.description}</p>
+              <p className="mt-2 text-base text-muted-foreground">{stage.description}</p>
             </div>
           </motion.div>
         ))}
@@ -247,8 +247,8 @@ function Materials({ materials }: { materials: MaterialTemplate[] }) {
     <section className="rounded-3xl border border-border/70 bg-background/75 p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">材料与模板中心</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h3 className="text-xl font-semibold">材料与模板中心</h3>
+          <p className="mt-1 text-base text-muted-foreground">
             调用 Agent 生成说明书、申请表或上传检验报告。
           </p>
         </div>
@@ -268,8 +268,8 @@ function Materials({ materials }: { materials: MaterialTemplate[] }) {
             <div className="flex-1 space-y-2">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h4 className="text-sm font-semibold">{material.title}</h4>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  <h4 className="text-base font-semibold">{material.title}</h4>
+                  <p className="text-base uppercase tracking-wide text-muted-foreground">
                     {material.type === "agent"
                       ? "智能生成"
                       : material.type === "upload"
@@ -281,7 +281,7 @@ function Materials({ materials }: { materials: MaterialTemplate[] }) {
                   {material.action}
                 </Button>
               </div>
-              <p className="text-sm text-muted-foreground">{material.description}</p>
+              <p className="text-base text-muted-foreground">{material.description}</p>
             </div>
           </motion.div>
         ))}
@@ -302,7 +302,7 @@ function Cases({ config }: Props) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">在办批文案件</h3>
+        <h3 className="text-xl font-semibold">在办批文案件</h3>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm">
             导入历史
@@ -313,8 +313,8 @@ function Cases({ config }: Props) {
         </div>
       </div>
       <div className="overflow-hidden rounded-2xl border border-border/70 bg-background/80 shadow-sm">
-        <table className="min-w-full divide-y divide-border/60 text-sm">
-          <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+        <table className="min-w-full divide-y divide-border/60 text-base">
+          <thead className="bg-muted/50 text-left text-base uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-medium">产品</th>
               <th className="px-4 py-3 font-medium">类别</th>
@@ -341,7 +341,7 @@ function Cases({ config }: Props) {
                 <td className="px-4 py-4">
                   <span
                     className={cn(
-                      "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium",
+                      "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-base font-medium",
                       statusColor[item.status],
                     )}
                   >
@@ -370,8 +370,8 @@ function Alerts({ alerts }: { alerts: AlertItem[] }) {
     <section className="rounded-3xl border border-border/70 bg-background/75 p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">风险与时间节点</h3>
-          <p className="mt-1 text-sm text-muted-foreground">补正、检验、审批等关键提醒。</p>
+          <h3 className="text-xl font-semibold">风险与时间节点</h3>
+          <p className="mt-1 text-base text-muted-foreground">补正、检验、审批等关键提醒。</p>
         </div>
         <Button variant="ghost" size="sm">
           配置提醒
@@ -385,7 +385,7 @@ function Alerts({ alerts }: { alerts: AlertItem[] }) {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.06, duration: 0.3 }}
             className={cn(
-              "flex flex-col gap-1 rounded-2xl border px-4 py-3 text-sm transition",
+              "flex flex-col gap-1 rounded-2xl border px-4 py-3 text-base transition",
               alertColor[alert.type],
             )}
           >
@@ -394,9 +394,9 @@ function Alerts({ alerts }: { alerts: AlertItem[] }) {
                 <AlertTriangle className="h-4 w-4" />
                 {alert.title}
               </span>
-              <span className="text-xs font-medium">截止 {alert.due}</span>
+              <span className="text-base font-medium">截止 {alert.due}</span>
             </div>
-            <p className="text-xs">{alert.detail}</p>
+            <p className="text-base">{alert.detail}</p>
           </motion.div>
         ))}
       </div>
@@ -409,8 +409,8 @@ function Knowledge({ knowledge }: { knowledge: DisinfectantConfig["knowledge"] }
     <section className="rounded-3xl border border-border/70 bg-background/75 p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">政策与案例洞察</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h3 className="text-xl font-semibold">政策与案例洞察</h3>
+          <p className="mt-1 text-base text-muted-foreground">
             实时关注药监局政策、补正案例、审批趋势。
           </p>
         </div>
@@ -426,18 +426,18 @@ function Knowledge({ knowledge }: { knowledge: DisinfectantConfig["knowledge"] }
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.4 }}
             transition={{ delay: index * 0.08, duration: 0.32 }}
-            className="rounded-2xl border border-border/60 bg-white/65 p-4 text-sm shadow-sm dark:bg-slate-900/55"
+            className="rounded-2xl border border-border/60 bg-white/65 p-4 text-base shadow-sm dark:bg-slate-900/55"
           >
             <div className="flex items-center justify-between gap-2">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              <p className="text-base uppercase tracking-wide text-muted-foreground">
                 {item.timestamp}
               </p>
-              <span className="inline-flex items-center gap-2 text-xs text-primary">
+              <span className="inline-flex items-center gap-2 text-base text-primary">
                 <Beaker className="h-3.5 w-3.5" />
                 建议：{item.suggestion}
               </span>
             </div>
-            <h4 className="mt-1 text-sm font-semibold">{item.title}</h4>
+            <h4 className="mt-1 text-base font-semibold">{item.title}</h4>
             <p className="mt-2 text-muted-foreground">{item.summary}</p>
           </motion.div>
         ))}

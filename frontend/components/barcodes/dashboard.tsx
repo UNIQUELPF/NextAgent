@@ -23,7 +23,7 @@ type Props = {
 
 export function BarcodeDashboard({ config }: Props) {
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 text-base sm:text-lg">
       <Hero />
       <Metrics config={config} />
       <div className="grid gap-6 xl:grid-cols-[1.4fr,1fr]">
@@ -53,14 +53,14 @@ function Hero() {
         transition={{ duration: 0.45, ease: "easeOut" }}
         className="space-y-5"
       >
-        <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+        <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-base font-medium text-primary">
           <Tags className="h-3.5 w-3.5" />
           商品条码运营中心
         </span>
-        <h2 className="text-3xl font-semibold leading-tight">
+        <h2 className="text-4xl font-semibold leading-tight">
           管理 GS1 前缀申请、批次发放和渠道同步，让条码成为产品通行证。
         </h2>
-        <p className="max-w-3xl text-base text-muted-foreground">
+        <p className="max-w-3xl text-lg text-muted-foreground">
           自动生成条码申请材料、批次码表与平台校验文件，提醒续费和同步风险，保障商品进入正规流通。
         </p>
         <div className="flex flex-wrap items-center gap-3">
@@ -81,7 +81,7 @@ function Metrics({ config }: Props) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">关键指标</h3>
+        <h3 className="text-xl font-semibold">关键指标</h3>
         <Button variant="ghost" size="sm">
           导出报表
         </Button>
@@ -95,9 +95,9 @@ function Metrics({ config }: Props) {
             transition={{ delay: index * 0.08, duration: 0.35 }}
             className="rounded-2xl border border-border/70 bg-background/75 p-6 shadow-sm"
           >
-            <p className="text-sm text-muted-foreground">{metric.title}</p>
-            <p className="mt-3 text-3xl font-semibold">{metric.value}</p>
-            <p className="mt-2 text-xs font-medium text-primary">{metric.trend}</p>
+            <p className="text-base text-muted-foreground">{metric.title}</p>
+            <p className="mt-3 text-4xl font-semibold">{metric.value}</p>
+            <p className="mt-2 text-base font-medium text-primary">{metric.trend}</p>
           </motion.div>
         ))}
       </div>
@@ -110,8 +110,8 @@ function Prefixes({ prefixes }: { prefixes: BarcodeConfig["prefixes"] }) {
     <section className="space-y-4 rounded-3xl border border-border/70 bg-background/75 p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">条码前缀状态</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h3 className="text-xl font-semibold">条码前缀状态</h3>
+          <p className="mt-1 text-base text-muted-foreground">
             跟踪前缀有效期、续费状态与使用配额。
           </p>
         </div>
@@ -137,16 +137,16 @@ function Prefixes({ prefixes }: { prefixes: BarcodeConfig["prefixes"] }) {
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h4 className="text-lg font-semibold">前缀 {prefix.prefix}</h4>
-                <p className="text-xs text-muted-foreground">{prefix.region}</p>
+                <h4 className="text-xl font-semibold">前缀 {prefix.prefix}</h4>
+                <p className="text-base text-muted-foreground">{prefix.region}</p>
               </div>
-              <span className="rounded-full bg-white/50 px-3 py-1 text-xs font-medium">
+              <span className="rounded-full bg-white/50 px-3 py-1 text-base font-medium">
                 {prefix.status}
               </span>
             </div>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <p className="text-sm text-muted-foreground">有效期至 {prefix.validUntil}</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-base text-muted-foreground">有效期至 {prefix.validUntil}</p>
+              <p className="text-base text-muted-foreground">
                 配额 {prefix.quota.used.toLocaleString()} /
                 {prefix.quota.total.toLocaleString()}
               </p>
@@ -172,8 +172,8 @@ function Reminders({ reminders }: { reminders: ReminderItem[] }) {
     <section className="rounded-3xl border border-border/70 bg-background/75 p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">续费与渠道提醒</h3>
-          <p className="mt-1 text-sm text-muted-foreground">保持前缀有效和渠道同步。</p>
+          <h3 className="text-xl font-semibold">续费与渠道提醒</h3>
+          <p className="mt-1 text-base text-muted-foreground">保持前缀有效和渠道同步。</p>
         </div>
         <Button variant="ghost" size="sm">
           配置提醒
@@ -187,7 +187,7 @@ function Reminders({ reminders }: { reminders: ReminderItem[] }) {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.06, duration: 0.3 }}
             className={cn(
-              "flex flex-col gap-1 rounded-2xl border px-4 py-3 text-sm transition",
+              "flex flex-col gap-1 rounded-2xl border px-4 py-3 text-base transition",
               reminderColors[reminder.type],
             )}
           >
@@ -196,9 +196,9 @@ function Reminders({ reminders }: { reminders: ReminderItem[] }) {
                 <AlertTriangle className="h-4 w-4" />
                 {reminder.title}
               </span>
-              <span className="text-xs font-medium">截止 {reminder.due}</span>
+              <span className="text-base font-medium">截止 {reminder.due}</span>
             </div>
-            <p className="text-xs">{reminder.detail}</p>
+            <p className="text-base">{reminder.detail}</p>
           </motion.div>
         ))}
       </div>
@@ -210,7 +210,7 @@ function Batches({ batches }: { batches: BarcodeConfig["batches"] }) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">条码批次管理</h3>
+        <h3 className="text-xl font-semibold">条码批次管理</h3>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm">
             导入批次
@@ -221,8 +221,8 @@ function Batches({ batches }: { batches: BarcodeConfig["batches"] }) {
         </div>
       </div>
       <div className="overflow-hidden rounded-2xl border border-border/70 bg-background/80 shadow-sm">
-        <table className="min-w-full divide-y divide-border/60 text-sm">
-          <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+        <table className="min-w-full divide-y divide-border/60 text-base">
+          <thead className="bg-muted/50 text-left text-base uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-medium">批次名称</th>
               <th className="px-4 py-3 font-medium">编码范围</th>
@@ -261,8 +261,8 @@ function Workflow({ stages }: { stages: BarcodeConfig["workflow"] }) {
     <section className="rounded-3xl border border-border/70 bg-background/75 p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">申请与续费流程</h3>
-          <p className="mt-1 text-sm text-muted-foreground">追踪申请、续费和渠道同步节点。</p>
+          <h3 className="text-xl font-semibold">申请与续费流程</h3>
+          <p className="mt-1 text-base text-muted-foreground">追踪申请、续费和渠道同步节点。</p>
         </div>
         <Button variant="ghost" size="sm">
           管理流程
@@ -283,17 +283,17 @@ function Workflow({ stages }: { stages: BarcodeConfig["workflow"] }) {
             <div className="flex-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <p className="text-xs font-medium text-primary/70">{stage.status}</p>
-                  <h4 className="mt-1 text-base font-semibold">{stage.title}</h4>
+                  <p className="text-base font-medium text-primary/70">{stage.status}</p>
+                  <h4 className="mt-1 text-lg font-semibold">{stage.title}</h4>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-base text-muted-foreground">
                     {stage.owner}
                   </span>
-                  <span className="text-xs text-muted-foreground">ETA {stage.eta}</span>
+                  <span className="text-base text-muted-foreground">ETA {stage.eta}</span>
                 </div>
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">{stage.description}</p>
+              <p className="mt-2 text-base text-muted-foreground">{stage.description}</p>
             </div>
           </motion.div>
         ))}
@@ -306,7 +306,7 @@ function Items({ items }: { items: BarcodeConfig["items"] }) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">条码明细与渠道同步</h3>
+        <h3 className="text-xl font-semibold">条码明细与渠道同步</h3>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm">
             导出码表
@@ -317,8 +317,8 @@ function Items({ items }: { items: BarcodeConfig["items"] }) {
         </div>
       </div>
       <div className="overflow-hidden rounded-2xl border border-border/70 bg-background/80 shadow-sm">
-        <table className="min-w-full divide-y divide-border/60 text-sm">
-          <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+        <table className="min-w-full divide-y divide-border/60 text-base">
+          <thead className="bg-muted/50 text-left text-base uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-medium">产品</th>
               <th className="px-4 py-3 font-medium">SKU</th>
@@ -345,7 +345,7 @@ function Items({ items }: { items: BarcodeConfig["items"] }) {
                 <td className="px-4 py-4">
                   <span
                     className={cn(
-                      "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium",
+                      "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-base font-medium",
                       item.status === "已同步"
                         ? "bg-emerald-200/25 text-emerald-700"
                         : item.status === "未同步"
@@ -371,8 +371,8 @@ function Materials({ materials }: { materials: BarcodeConfig["materials"] }) {
     <section className="rounded-3xl border border-border/70 bg-background/75 p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">材料与模板中心</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h3 className="text-xl font-semibold">材料与模板中心</h3>
+          <p className="mt-1 text-base text-muted-foreground">
             自动生成申请材料或下载导入模板，确保条码资料完整。
           </p>
         </div>
@@ -398,8 +398,8 @@ function Materials({ materials }: { materials: BarcodeConfig["materials"] }) {
             <div className="flex-1 space-y-2">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h4 className="text-sm font-semibold">{material.title}</h4>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  <h4 className="text-base font-semibold">{material.title}</h4>
+                  <p className="text-base uppercase tracking-wide text-muted-foreground">
                     {material.type === "agent"
                       ? "智能生成"
                       : material.type === "upload"
@@ -411,7 +411,7 @@ function Materials({ materials }: { materials: BarcodeConfig["materials"] }) {
                   {material.action}
                 </Button>
               </div>
-              <p className="text-sm text-muted-foreground">{material.description}</p>
+              <p className="text-base text-muted-foreground">{material.description}</p>
             </div>
           </motion.div>
         ))}
@@ -425,8 +425,8 @@ function Knowledge({ knowledge }: { knowledge: BarcodeConfig["knowledge"] }) {
     <section className="rounded-3xl border border-border/70 bg-background/75 p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">政策与知识库</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h3 className="text-xl font-semibold">政策与知识库</h3>
+          <p className="mt-1 text-base text-muted-foreground">
             关注 GS1 规则、电商平台要求与自检指南。
           </p>
         </div>
@@ -442,18 +442,18 @@ function Knowledge({ knowledge }: { knowledge: BarcodeConfig["knowledge"] }) {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.4 }}
             transition={{ delay: index * 0.08, duration: 0.32 }}
-            className="rounded-2xl border border-border/60 bg-white/65 p-4 text-sm shadow-sm dark:bg-slate-900/55"
+            className="rounded-2xl border border-border/60 bg-white/65 p-4 text-base shadow-sm dark:bg-slate-900/55"
           >
             <div className="flex items-center justify-between gap-2">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              <p className="text-base uppercase tracking-wide text-muted-foreground">
                 {item.timestamp}
               </p>
-              <span className="inline-flex items-center gap-2 text-xs text-primary">
+              <span className="inline-flex items-center gap-2 text-base text-primary">
                 <BookText className="h-3.5 w-3.5" />
                 建议：{item.suggestion}
               </span>
             </div>
-            <h4 className="mt-1 text-sm font-semibold">{item.title}</h4>
+            <h4 className="mt-1 text-base font-semibold">{item.title}</h4>
             <p className="mt-2 text-muted-foreground">{item.summary}</p>
           </motion.div>
         ))}

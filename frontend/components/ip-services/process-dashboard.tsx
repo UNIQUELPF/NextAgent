@@ -29,7 +29,7 @@ type Props = {
 
 export function ProcessDashboard({ config }: Props) {
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 text-lg sm:text-xl">
       <Hero config={config} />
       <Metrics config={config} />
       <div className="grid gap-6 xl:grid-cols-[1.4fr,1fr]">
@@ -55,12 +55,12 @@ function Hero({ config }: Props) {
         transition={{ duration: 0.45, ease: "easeOut" }}
         className="space-y-5"
       >
-        <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+        <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-base font-medium text-primary">
           <Archive className="h-3.5 w-3.5" />
           知识产权流程指挥
         </span>
-        <h2 className="text-3xl font-semibold leading-tight">{config.heroTitle}</h2>
-        <p className="max-w-3xl text-base text-muted-foreground">
+        <h2 className="text-4xl font-semibold leading-tight">{config.heroTitle}</h2>
+        <p className="max-w-3xl text-lg text-muted-foreground">
           {config.heroDescription}
         </p>
         <div className="flex flex-wrap items-center gap-3">
@@ -81,7 +81,7 @@ function Metrics({ config }: Props) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">关键指标</h3>
+        <h3 className="text-xl font-semibold">关键指标</h3>
         <Button variant="ghost" size="sm">
           导出报表
         </Button>
@@ -95,9 +95,9 @@ function Metrics({ config }: Props) {
             transition={{ delay: index * 0.08, duration: 0.35 }}
             className="rounded-2xl border border-border/70 bg-background/75 p-6 shadow-sm"
           >
-            <p className="text-sm text-muted-foreground">{metric.title}</p>
-            <p className="mt-3 text-3xl font-semibold">{metric.value}</p>
-            <p className="mt-2 text-xs font-medium text-primary">{metric.trend}</p>
+            <p className="text-base text-muted-foreground">{metric.title}</p>
+            <p className="mt-3 text-4xl font-semibold">{metric.value}</p>
+            <p className="mt-2 text-base font-medium text-primary">{metric.trend}</p>
           </motion.div>
         ))}
       </div>
@@ -110,8 +110,8 @@ function Workflow({ stages }: { stages: WorkflowStage[] }) {
     <section className="rounded-3xl border border-border/70 bg-background/75 p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">流程追踪</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h3 className="text-xl font-semibold">流程追踪</h3>
+          <p className="mt-1 text-base text-muted-foreground">
             查看节点状态、责任人与预计完成时间。
           </p>
         </div>
@@ -134,19 +134,19 @@ function Workflow({ stages }: { stages: WorkflowStage[] }) {
             <div className="flex-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <p className="text-xs font-medium text-primary/70">{stage.status}</p>
-                  <h4 className="mt-1 text-base font-semibold">{stage.title}</h4>
+                  <p className="text-base font-medium text-primary/70">{stage.status}</p>
+                  <h4 className="mt-1 text-lg font-semibold">{stage.title}</h4>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-base text-muted-foreground">
                     {stage.owner}
                   </span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-base text-muted-foreground">
                     ETA {stage.eta}
                   </span>
                 </div>
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">{stage.description}</p>
+              <p className="mt-2 text-base text-muted-foreground">{stage.description}</p>
             </div>
           </motion.div>
         ))}
@@ -160,8 +160,8 @@ function Materials({ materials }: { materials: MaterialTemplate[] }) {
     <section className="rounded-3xl border border-border/70 bg-background/75 p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">材料与模板中心</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h3 className="text-xl font-semibold">材料与模板中心</h3>
+          <p className="mt-1 text-base text-muted-foreground">
             一键生成申请书、说明书、转让协议等材料。
           </p>
         </div>
@@ -182,8 +182,8 @@ function Materials({ materials }: { materials: MaterialTemplate[] }) {
             <div className="flex-1 space-y-2">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h4 className="text-sm font-semibold">{material.title}</h4>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  <h4 className="text-base font-semibold">{material.title}</h4>
+                  <p className="text-base uppercase tracking-wide text-muted-foreground">
                     {material.type === "agent"
                       ? "智能生成"
                       : material.type === "upload"
@@ -195,7 +195,7 @@ function Materials({ materials }: { materials: MaterialTemplate[] }) {
                   {material.action}
                 </Button>
               </div>
-              <p className="text-sm text-muted-foreground">{material.description}</p>
+              <p className="text-base text-muted-foreground">{material.description}</p>
             </div>
           </motion.div>
         ))}
@@ -216,7 +216,7 @@ function Cases({ cases }: { cases: CaseItem[] }) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">在办案件</h3>
+        <h3 className="text-xl font-semibold">在办案件</h3>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm">
             导入历史
@@ -227,8 +227,8 @@ function Cases({ cases }: { cases: CaseItem[] }) {
         </div>
       </div>
       <div className="overflow-hidden rounded-2xl border border-border/70 bg-background/80 shadow-sm">
-        <table className="min-w-full divide-y divide-border/60 text-sm">
-          <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+        <table className="min-w-full divide-y divide-border/60 text-base">
+          <thead className="bg-muted/50 text-left text-base uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-medium">名称/标识</th>
               <th className="px-4 py-3 font-medium">类别</th>
@@ -255,7 +255,7 @@ function Cases({ cases }: { cases: CaseItem[] }) {
                 <td className="px-4 py-4">
                   <span
                     className={cn(
-                      "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium",
+                      "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-base font-medium",
                       statusMap[item.status],
                     )}
                   >
@@ -289,8 +289,8 @@ function Alerts({ alerts }: { alerts: AlertItem[] }) {
     <section className="rounded-3xl border border-border/70 bg-background/75 p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">期限与公告提醒</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h3 className="text-xl font-semibold">期限与公告提醒</h3>
+          <p className="mt-1 text-base text-muted-foreground">
             跟踪补正、公告与续展等关键节点。
           </p>
         </div>
@@ -306,7 +306,7 @@ function Alerts({ alerts }: { alerts: AlertItem[] }) {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.06, duration: 0.3 }}
             className={cn(
-              "flex flex-col gap-1 rounded-2xl border px-4 py-3 text-sm transition",
+              "flex flex-col gap-1 rounded-2xl border px-4 py-3 text-base transition",
               typeToColor[alert.type],
             )}
           >
@@ -315,9 +315,9 @@ function Alerts({ alerts }: { alerts: AlertItem[] }) {
                 {typeToIcon[alert.type]}
                 {alert.title}
               </span>
-              <span className="text-xs font-medium">截止 {alert.due}</span>
+              <span className="text-base font-medium">截止 {alert.due}</span>
             </div>
-            <p className="text-xs text-muted-foreground">{alert.detail}</p>
+            <p className="text-base text-muted-foreground">{alert.detail}</p>
           </motion.div>
         ))}
       </div>
@@ -330,8 +330,8 @@ function Insights({ insights }: { insights: ProcessConfig["insights"] }) {
     <section className="rounded-3xl border border-border/70 bg-background/75 p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">政策与案例洞察</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h3 className="text-xl font-semibold">政策与案例洞察</h3>
+          <p className="mt-1 text-base text-muted-foreground">
             获取最新政策、审查趋势及驳回案例分析。
           </p>
         </div>
@@ -347,23 +347,23 @@ function Insights({ insights }: { insights: ProcessConfig["insights"] }) {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.4 }}
             transition={{ delay: index * 0.08, duration: 0.32 }}
-            className="rounded-2xl border border-border/60 bg-white/65 p-4 text-sm shadow-sm dark:bg-slate-900/55"
+            className="rounded-2xl border border-border/60 bg-white/65 p-4 text-base shadow-sm dark:bg-slate-900/55"
           >
             <div className="flex items-center justify-between gap-2">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              <p className="text-base uppercase tracking-wide text-muted-foreground">
                 {insight.timestamp}
               </p>
               {insight.link ? (
                 <a
                   href={insight.link}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  className="inline-flex items-center gap-1 text-base font-medium text-primary hover:underline"
                 >
                   查看原文
                   <ArrowUpRight className="h-3.5 w-3.5" />
                 </a>
               ) : null}
             </div>
-            <h4 className="mt-1 text-sm font-semibold">{insight.title}</h4>
+            <h4 className="mt-1 text-base font-semibold">{insight.title}</h4>
             <p className="mt-2 text-muted-foreground">{insight.summary}</p>
           </motion.div>
         ))}

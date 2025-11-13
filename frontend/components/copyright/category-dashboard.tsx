@@ -25,7 +25,7 @@ type CategoryDashboardProps = {
 
 export function CategoryDashboard({ config }: CategoryDashboardProps) {
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 text-base sm:text-lg">
       <Hero config={config} />
       <Metrics config={config} />
       <div className="grid gap-6 xl:grid-cols-[1.5fr,1fr]">
@@ -47,12 +47,12 @@ function Hero({ config }: CategoryDashboardProps) {
         transition={{ duration: 0.4 }}
         className="max-w-3xl space-y-4"
       >
-        <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+        <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-base font-medium text-primary">
           <CheckCircle2 className="h-3.5 w-3.5" />
           著作权智能代理
         </span>
-        <h1 className="text-3xl font-semibold leading-tight">{config.heroTitle}</h1>
-        <p className="text-base text-muted-foreground">{config.heroDescription}</p>
+        <h1 className="text-4xl font-semibold leading-tight">{config.heroTitle}</h1>
+        <p className="text-lg text-muted-foreground">{config.heroDescription}</p>
         <div className="flex flex-wrap items-center gap-3">
           <Button size="lg">
             创建新申请
@@ -71,7 +71,7 @@ function Hero({ config }: CategoryDashboardProps) {
 function Metrics({ config }: CategoryDashboardProps) {
   return (
     <section className="space-y-4">
-      <h2 className="text-lg font-semibold">核心指标</h2>
+      <h2 className="text-xl font-semibold">核心指标</h2>
       <div className="grid gap-4 md:grid-cols-3">
         {config.metrics.map((metric, index) => (
           <motion.div
@@ -81,9 +81,9 @@ function Metrics({ config }: CategoryDashboardProps) {
             transition={{ delay: index * 0.08, duration: 0.3 }}
             className="rounded-2xl border border-border/70 bg-background/70 p-6 shadow-sm"
           >
-            <p className="text-sm text-muted-foreground">{metric.title}</p>
-            <p className="mt-3 text-3xl font-semibold">{metric.value}</p>
-            <p className="mt-2 text-xs font-medium text-primary">{metric.trend}</p>
+            <p className="text-base text-muted-foreground">{metric.title}</p>
+            <p className="mt-3 text-4xl font-semibold">{metric.value}</p>
+            <p className="mt-2 text-base font-medium text-primary">{metric.trend}</p>
           </motion.div>
         ))}
       </div>
@@ -96,8 +96,8 @@ function Pipeline({ stages }: { stages: PipelineStage[] }) {
     <section className="rounded-3xl border border-border/70 bg-background/70 p-6 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">自动化流水线</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h2 className="text-xl font-semibold">自动化流水线</h2>
+          <p className="mt-1 text-base text-muted-foreground">
             追踪当前阶段与待处理事项。
           </p>
         </div>
@@ -119,9 +119,9 @@ function Pipeline({ stages }: { stages: PipelineStage[] }) {
               <Clock4 className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-medium text-primary/70">{stage.status}</p>
-              <h3 className="mt-1 text-base font-semibold">{stage.title}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{stage.description}</p>
+              <p className="text-base font-medium text-primary/70">{stage.status}</p>
+              <h3 className="mt-1 text-lg font-semibold">{stage.title}</h3>
+              <p className="mt-2 text-base text-muted-foreground">{stage.description}</p>
             </div>
           </motion.div>
         ))}
@@ -135,8 +135,8 @@ function Templates({ templates }: { templates: TemplateItem[] }) {
     <section className="rounded-3xl border border-border/70 bg-background/70 p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">智能模版与材料</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h2 className="text-xl font-semibold">智能模版与材料</h2>
+          <p className="mt-1 text-base text-muted-foreground">
             调用 Agent 自动生成核心材料。
           </p>
         </div>
@@ -155,12 +155,12 @@ function Templates({ templates }: { templates: TemplateItem[] }) {
             </div>
             <div className="flex-1 space-y-2">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold">{template.title}</h3>
+                <h3 className="text-base font-semibold">{template.title}</h3>
                 <Button variant="outline" size="sm">
                   {template.action}
                 </Button>
               </div>
-              <p className="text-sm text-muted-foreground">{template.description}</p>
+              <p className="text-base text-muted-foreground">{template.description}</p>
             </div>
           </motion.div>
         ))}
@@ -173,14 +173,14 @@ function Tasks({ tasks }: { tasks: TaskItem[] }) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">在办申请</h2>
+        <h2 className="text-xl font-semibold">在办申请</h2>
         <Button variant="ghost" size="sm">
           查看全部
         </Button>
       </div>
       <div className="overflow-hidden rounded-2xl border border-border/70 bg-background/80 shadow-sm">
-        <table className="min-w-full divide-y divide-border/60 text-sm">
-          <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+        <table className="min-w-full divide-y divide-border/60 text-base">
+          <thead className="bg-muted/50 text-left text-base uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-medium">申请项目</th>
               <th className="px-4 py-3 font-medium">负责人</th>
@@ -223,7 +223,7 @@ const statusStyles: Record<TaskItem["status"], string> = {
 
 function StatusBadge({ status }: { status: TaskItem["status"] }) {
   return (
-    <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", statusStyles[status])}>
+    <span className={cn("rounded-full px-2.5 py-1 text-base font-medium", statusStyles[status])}>
       {status}
     </span>
   );
@@ -234,8 +234,8 @@ function Insights({ insights }: { insights: InsightItem[] }) {
     <section className="rounded-3xl border border-border/70 bg-background/70 p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">政策与知识库</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h2 className="text-xl font-semibold">政策与知识库</h2>
+          <p className="mt-1 text-base text-muted-foreground">
             实时同步政策变更与最佳实践提示。
           </p>
         </div>
@@ -257,9 +257,9 @@ function Insights({ insights }: { insights: InsightItem[] }) {
               <Lightbulb className="h-4 w-4" />
             </div>
             <div className="flex-1">
-              <p className="text-xs text-muted-foreground">{insight.timestamp}</p>
-              <h3 className="mt-1 text-sm font-semibold">{insight.title}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{insight.summary}</p>
+              <p className="text-base text-muted-foreground">{insight.timestamp}</p>
+              <h3 className="mt-1 text-base font-semibold">{insight.title}</h3>
+              <p className="mt-1 text-base text-muted-foreground">{insight.summary}</p>
             </div>
           </motion.div>
         ))}

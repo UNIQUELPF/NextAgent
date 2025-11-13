@@ -24,16 +24,16 @@ export function DisinfectantNav() {
   }, [query]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-base">
       <div className="flex justify-center">
         <div className="relative w-full max-w-lg">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           <input
             type="search"
             placeholder="搜索消毒产品类别或关键词..."
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            className="w-full rounded-2xl border border-border/70 bg-white px-10 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
+            className="w-full rounded-2xl border border-border/70 bg-white px-11 py-2.5 text-base outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
           />
         </div>
       </div>
@@ -46,25 +46,25 @@ export function DisinfectantNav() {
               key={item.slug}
               href={href}
               className={cn(
-                "flex flex-col gap-1 rounded-2xl border p-4 transition hover:-translate-y-1",
+                "flex flex-col gap-2 rounded-3xl border p-5 transition hover:-translate-y-1",
                 isActive
                   ? "border-primary/60 bg-primary/10 shadow-md"
                   : "border-border/70 bg-background/70 hover:border-primary/40 hover:bg-primary/5",
               )}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-semibold text-foreground">{item.label}</span>
-                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                <span className="text-lg font-semibold text-foreground">{item.label}</span>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-base text-muted-foreground">
                   {item.activeCount} 在办
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground">{item.description}</p>
-              <span className="text-xs font-medium text-primary">{item.highlight}</span>
+              <p className="text-base text-muted-foreground">{item.description}</p>
+              <span className="text-lg font-medium text-primary">{item.highlight}</span>
             </Link>
           );
         })}
         {filtered.length === 0 ? (
-          <p className="col-span-full rounded-2xl border border-dashed border-border/60 bg-background/60 p-6 text-sm text-muted-foreground">
+          <p className="col-span-full rounded-2xl border border-dashed border-border/60 bg-background/60 p-6 text-base text-muted-foreground">
             未找到相关类别，请调整搜索条件或创建自定义流程。
           </p>
         ) : null}
