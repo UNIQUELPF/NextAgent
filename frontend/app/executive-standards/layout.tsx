@@ -8,7 +8,7 @@ export default function ExecutiveStandardsLayout({
   children: ReactNode;
 }) {
   return (
-    <div className="space-y-10 text-sm sm:text-base">
+    <div className="space-y-10 text-xl sm:text-2xl">
       <section className="py-8">
         <div className="mx-auto max-w-[85vw] px-4 2xl:max-w-[1600px]">
           <div className="relative overflow-hidden rounded-[32px] border border-white/60 bg-white p-8 shadow-[0_30px_90px_rgba(90,104,255,0.12)] backdrop-blur-xl">
