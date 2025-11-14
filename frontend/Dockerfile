@@ -1,11 +1,15 @@
 FROM node:20-bullseye AS base
-WORKDIR /app
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+ENV npm_config_registry="https://registry.npmjs.org/"
 RUN corepack enable
 
+WORKDIR /app
+
 FROM base AS deps
-COPY package.json pnpm-lock.yaml ./
+WORKDIR /app
+COPY pnpm-lock.yaml package.json ./
+COPY .npmrc ./
 RUN pnpm install --frozen-lockfile
 
 FROM base AS build

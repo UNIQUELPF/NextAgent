@@ -10,7 +10,7 @@ COPY internal ./internal
 
 RUN go build -o /bin/portal ./cmd/portal
 
-FROM gcr.io/distroless/base-debian12
+FROM gcr.io/distroless/base-debian11:nonroot
 
 COPY --from=build /bin/portal /bin/portal
 COPY configs /etc/portal/configs
