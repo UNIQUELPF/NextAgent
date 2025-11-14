@@ -37,13 +37,9 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           <HeaderVisibilityProvider>
             <CurrentUserProvider>
-              <div className="relative min-h-screen overflow-hidden bg-background">
-                <div className="relative z-10">
-                  <SiteHeader />
-                  <main className="relative z-10 pb-24 pt-8">{children}</main>
-                </div>
-                <MobileDock />
-              </div>
+              <SiteHeader />
+              <main className="min-h-screen bg-background pb-24 pt-8">{children}</main>
+              <MobileDock />
             </CurrentUserProvider>
           </HeaderVisibilityProvider>
         </ThemeProvider>

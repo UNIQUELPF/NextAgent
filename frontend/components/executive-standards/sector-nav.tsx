@@ -24,7 +24,7 @@ export function SectorNav() {
   }, [query]);
 
   return (
-    <div className="space-y-5 text-sm sm:text-base">
+    <div className="space-y-5 text-base sm:text-lg">
       <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:justify-center">
         <div className="relative w-full max-w-lg">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -33,7 +33,7 @@ export function SectorNav() {
             placeholder="搜索品类或关键词..."
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            className="w-full rounded-2xl border border-border/70 bg-white px-9 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
+            className="w-full rounded-2xl border border-border/70 bg-white px-9 py-2.5 text-base outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
           />
         </div>
       </div>
@@ -53,19 +53,19 @@ export function SectorNav() {
               )}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="text-base font-semibold text-foreground">
+                <span className="text-lg font-semibold text-foreground">
                   {sector.label}
                 </span>
-                <span className="rounded-full border border-border/50 bg-white px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+                <span className="rounded-full border border-border/50 bg-white px-3 py-0.5 text-sm font-semibold text-muted-foreground">
                   {sector.activeCount} 在办
                 </span>
               </div>
-              <p className="text-sm text-muted-foreground">{sector.description}</p>
+              <p className="text-base text-muted-foreground">{sector.description}</p>
             </Link>
           );
         })}
         {filtered.length === 0 ? (
-          <p className="col-span-full rounded-3xl border border-dashed border-border/60 bg-background/60 p-5 text-sm text-muted-foreground">
+          <p className="col-span-full rounded-3xl border border-dashed border-border/60 bg-background/60 p-5 text-base text-muted-foreground">
             未找到相关品类，请尝试其他关键词或创建定制流程。
           </p>
         ) : null}

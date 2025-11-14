@@ -314,50 +314,63 @@ export function CopyrightWorkspace() {
         </div>
       )}
 
-      <section className="rounded-3xl border border-border/60 bg-white/80 p-6 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold">执行概览</h2>
-            <p className="text-sm text-muted-foreground">实时统计任务运行状态与平均耗时。</p>
-          </div>
-          <Button variant="ghost" size="sm" onClick={loadStats} disabled={statsLoading}>
-            {statsLoading ? "刷新中..." : "刷新统计"}
-          </Button>
-        </div>
-        <div className="mt-6 grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-          {statCards.map((card) => (
-            <div key={card.label} className="rounded-2xl border border-border/60 bg-background/70 p-4">
-              <p className="text-sm text-muted-foreground">{card.label}</p>
-              <p className="mt-2 text-2xl font-semibold">{card.value}</p>
+      <section className="relative overflow-hidden rounded-[40px] border border-[#E0E5F4] bg-gradient-to-br from-[#F8FAFF] via-white to-[#EEF2FF]">
+        <div className="pointer-events-none absolute -left-16 top-10 h-48 w-48 rounded-full bg-[#AEC4FF]/35 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 right-0 h-56 w-56 rounded-full bg-[#7ADFFF]/30 blur-[150px]" />
+        <div className="relative grid gap-8 p-6 lg:grid-cols-[1.1fr,0.9fr]">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.4em] text-[#6F7BFF]">Overview</p>
+                <h2 className="mt-1 text-3xl font-semibold text-slate-900">执行概览</h2>
+                <p className="text-base text-slate-500">核心数据、平均时长与模型表现，一目了然。</p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={loadStats} disabled={statsLoading} className="rounded-full border border-slate-200 px-5">
+                {statsLoading ? "刷新中..." : "刷新统计"}
+              </Button>
             </div>
-          ))}
-        </div>
-        {stats?.by_model && stats.by_model.length > 0 && (
-          <div className="mt-6 overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-muted-foreground">
-                  <th className="px-2 py-2 font-medium">配置别名</th>
-                  <th className="px-2 py-2 font-medium">模型</th>
-                  <th className="px-2 py-2 font-medium">任务数</th>
-                  <th className="px-2 py-2 font-medium">完成率</th>
-                  <th className="px-2 py-2 font-medium">平均时长</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.by_model.map((item) => (
-                  <tr key={item.config_alias} className="border-t border-border/50">
-                    <td className="px-2 py-2 font-medium">{item.config_alias}</td>
-                    <td className="px-2 py-2">{item.model_name}</td>
-                    <td className="px-2 py-2">{item.task_count}</td>
-                    <td className="px-2 py-2">{item.success_rate}%</td>
-                    <td className="px-2 py-2">{item.avg_completion_time.toFixed(2)} min</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {statCards.slice(0, 3).map((card) => (
+                <div key={card.label} className="rounded-[24px] border border-[#ECEFF5] bg-[#F9FAFF] p-5">
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">{card.label}</p>
+                  <p className="mt-3 text-4xl font-semibold text-slate-900">{card.value}</p>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-[28px] border border-[#E7EBF6] bg-gradient-to-r from-[#F6F8FE] to-white p-6">
+              <p className="text-sm font-medium text-slate-500">平均完成时长</p>
+              <div className="mt-3 flex items-end gap-3">
+                <span className="text-5xl font-semibold text-slate-900">{stats?.avg_completion_time?.toFixed(1) ?? "--"}</span>
+                <span className="text-lg font-medium text-slate-500">分钟</span>
+              </div>
+              <div className="mt-4 h-2 rounded-full bg-slate-100">
+                <div className="h-full rounded-full bg-[#3E6BFF]" style={{ width: `${Math.min(100, (stats?.avg_completion_time ?? 0) * 4)}%` }} />
+              </div>
+              <p className="mt-2 text-xs text-slate-400">最快 {stats?.min_completion_time ?? "--"} 分 · 最慢 {stats?.max_completion_time ?? "--"} 分</p>
+            </div>
           </div>
-        )}
+          <div className="space-y-4 rounded-[28px] border border-[#EFF1F7] bg-[#FAFBFF] p-5">
+            {statCards.slice(3).map((card) => (
+              <div key={card.label} className="rounded-[22px] border border-white bg-white px-4 py-3">
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-400">{card.label}</p>
+                <p className="mt-2 text-2xl font-semibold text-slate-900">{card.value}</p>
+              </div>
+            ))}
+            {stats?.by_model && stats.by_model.length > 0 ? (
+              <div className="pt-4">
+                <p className="text-sm font-medium text-slate-500">重点模型</p>
+                <div className="mt-3 space-y-2 text-sm text-slate-600">
+                  {stats.by_model.slice(0, 3).map((item) => (
+                    <div key={item.config_alias} className="flex items-center justify-between rounded-[18px] border border-[#ECEFF6] bg-white px-3 py-2">
+                      <span className="font-medium">{item.config_alias}</span>
+                      <span>{item.completed_count}/{item.task_count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
@@ -496,86 +509,89 @@ export function CopyrightWorkspace() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-border/60 bg-white/80 p-6 shadow-sm">
-        <h2 className="text-lg font-semibold">任务列表</h2>
-        <div className="mt-4 overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="text-left text-muted-foreground">
-                <th className="px-3 py-2 font-medium">软件名称</th>
-                <th className="px-3 py-2 font-medium">模型配置</th>
-                <th className="px-3 py-2 font-medium">状态</th>
-                <th className="px-3 py-2 font-medium">进度</th>
-                <th className="px-3 py-2 font-medium">更新时间</th>
-                <th className="px-3 py-2 font-medium">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tasks.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
-                    还没有任务，先创建一个试试吧。
-                  </td>
-                </tr>
-              )}
-              {tasks.map((task) => {
-                const statusClass = statusColors[task.status] ?? "text-slate-600 bg-slate-50 border-slate-200";
-                return (
-                  <tr
-                    key={task.task_id}
-                    className={`cursor-pointer border-t border-border/50 transition hover:bg-slate-50 ${
-                      selectedTaskId === task.task_id ? "bg-slate-50" : ""
-                    }`}
-                    onClick={() => setSelectedTaskId(task.task_id)}
-                  >
-                    <td className="px-3 py-3 font-medium">{task.software_name}</td>
-                    <td className="px-3 py-3 text-muted-foreground">{task.config_alias ?? "—"}</td>
-                    <td className="px-3 py-3">
-                      <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusClass}`}>
-                        {task.status}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3">{task.progress ?? 0}%</td>
-                    <td className="px-3 py-3">{formatDate(task.updated_at)}</td>
-                    <td className="px-3 py-3">
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleRefreshTask(task.task_id);
-                          }}
-                        >
-                          刷新
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleDownload(task.task_id, { type: "all-files" });
-                          }}
-                        >
-                          下载材料
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleRemoveTask(task);
-                          }}
-                        >
-                          删除
-                        </Button>
+      <section className="rounded-[40px] border border-[#E4E7EF] bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-4 px-6 pt-6">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[#6F7BFF]">Task Board</p>
+            <h2 className="mt-1 text-2xl font-semibold text-slate-900">任务列表</h2>
+          </div>
+          <Button variant="outline" size="sm" onClick={loadTasks} disabled={tasksLoading}>
+            {tasksLoading ? "同步中..." : "刷新列表"}
+          </Button>
+        </div>
+        <div className="mt-4 divide-y divide-[#EFF1F7]">
+          {tasks.length === 0 ? (
+            <div className="px-6 py-10 text-center text-sm text-muted-foreground">还没有任务，先创建一个试试吧。</div>
+          ) : (
+            tasks.map((task) => {
+              const statusClass = statusColors[task.status] ?? "text-slate-600 bg-slate-50 border-slate-200";
+              return (
+                <div
+                  key={task.task_id}
+                  className={`cursor-pointer px-6 py-5 transition hover:bg-[#F9FAFF] ${
+                    selectedTaskId === task.task_id ? "bg-[#F9FAFF]" : ""
+                  }`}
+                  onClick={() => setSelectedTaskId(task.task_id)}
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+                    <div className="flex-1">
+                      <p className="text-xs uppercase tracking-[0.3em] text-slate-400">软件名称</p>
+                      <p className="text-lg font-semibold text-slate-900">{task.software_name}</p>
+                      <p className="text-xs text-slate-400">模型配置 · {task.config_alias ?? "—"}</p>
+                    </div>
+                    <div className="flex flex-1 flex-wrap gap-4 lg:justify-end">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.3em] text-slate-400">状态</p>
+                        <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusClass}`}>
+                          {task.status}
+                        </span>
                       </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.3em] text-slate-400">进度</p>
+                        <p className="text-sm font-semibold text-slate-700">{task.progress ?? 0}%</p>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.3em] text-slate-400">更新时间</p>
+                        <p className="text-sm text-slate-600">{formatDate(task.updated_at)}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleRefreshTask(task.task_id);
+                        }}
+                      >
+                        刷新
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleDownload(task.task_id, { type: "all-files" });
+                        }}
+                      >
+                        下载材料
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleRemoveTask(task);
+                        }}
+                      >
+                        删除
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </section>
 
