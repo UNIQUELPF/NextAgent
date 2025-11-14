@@ -17,6 +17,7 @@ services:
       PORTAL__DATABASE__CONN_MAX_LIFETIME: 5m
       PORTAL__KRATOS__WEBHOOK__USERNAME: kratos
       PORTAL__KRATOS__WEBHOOK__PASSWORD: kratos-hook
+      PORTAL__AGENTS__RUANZHU__BASE_URL: http://ruanzhu-agent:5888
     volumes:
       - ./backend/configs:/etc/portal/configs:ro
     ports:
@@ -28,4 +29,8 @@ services:
       keto:
         condition: service_started
       sms-mock:
+        condition: service_started
+      portal-migrate:
+        condition: service_completed_successfully
+      ruanzhu-agent:
         condition: service_started

@@ -40,7 +40,9 @@ Thumbs.db
 *.a
 *.o
 bin/
+backend/.gocache/
 
 # Misc
 tmp/
 temp/
+agents/

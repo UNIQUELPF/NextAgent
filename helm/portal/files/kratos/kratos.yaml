@@ -1,11 +1,6 @@
 version: v0.13.0
 
-dsn:
-  {
-    {
-      printf "postgres://kratos:kratos@%s-postgres:5432/kratos?sslmode=disable&max_conns=20" (include "portal.fullname" .) | quote,
-    },
-  }
+dsn: {{ printf "postgres://kratos:kratos@%s-postgres:5432/kratos?sslmode=disable&max_conns=20" (include "portal.fullname" .) | quote }}
 
 log:
   level: info
@@ -13,11 +8,11 @@ log:
 
 serve:
   public:
-    base_url: { { printf "%s/.ory/" (include "portal.publicURL" .) | quote } }
+    base_url: {{ printf "%s/.ory/" (include "portal.publicURL" .) | quote }}
     cors:
       enabled: true
       allowed_origins:
-        - { { include "portal.publicURL" . | quote } }
+        - {{ include "portal.publicURL" . | quote }}
       allowed_methods:
         - GET
         - POST
@@ -34,7 +29,7 @@ serve:
         - Content-Type
       allow_credentials: true
   admin:
-    base_url: { { printf "%s/" (include "portal.kratosAdminURL" .) | quote } }
+    base_url: {{ printf "%s/" (include "portal.kratosAdminURL" .) | quote }}
 
 secrets:
   cookie:
@@ -49,18 +44,16 @@ identity:
       url: file:///etc/config/kratos/identity.schema.json
 
 selfservice:
-  default_browser_return_url: { { include "portal.publicURL" . | quote } }
+  default_browser_return_url: {{ include "portal.publicURL" . | quote }}
   allowed_return_urls:
-    - { { include "portal.publicURL" . | quote } }
-    - { { printf "%s/*" (include "portal.publicURL" .) | quote } }
+    - {{ include "portal.publicURL" . | quote }}
+    - {{ printf "%s/*" (include "portal.publicURL" .) | quote }}
   flows:
     login:
-      ui_url:
-        { { printf "%s/auth/login" (include "portal.publicURL" .) | quote } }
+      ui_url: {{ printf "%s/auth/login" (include "portal.publicURL" .) | quote }}
       lifespan: 10m
     registration:
-      ui_url:
-        { { printf "%s/auth/register" (include "portal.publicURL" .) | quote } }
+      ui_url: {{ printf "%s/auth/register" (include "portal.publicURL" .) | quote }}
       lifespan: 10m
       after:
         code:
@@ -68,33 +61,21 @@ selfservice:
             - hook: session
             - hook: web_hook
               config:
-                url:
-                  {
-                    {
-                      printf "%s/api/internal/hooks/kratos/registration" (include "portal.backendInternalURL" .) | quote,
-                    },
-                  }
+                url: {{ printf "%s/api/internal/hooks/kratos/registration" (include "portal.backendInternalURL" .) | quote }}
                 method: POST
                 body: base64://ZnVuY3Rpb24oY3R4KSB7CiAgaWRlbnRpdHk6IGN0eC5pZGVudGl0eSwKfQo=
                 headers:
                   Content-Type: application/json
                   Authorization: Basic a3JhdG9zOmtyYXRvcy1ob29r
     settings:
-      ui_url:
-        {
-          {
-            printf "%s/account/settings" (include "portal.publicURL" .) | quote,
-          },
-        }
+      ui_url: {{ printf "%s/account/settings" (include "portal.publicURL" .) | quote }}
     verification:
       enabled: true
       use: code
-      ui_url:
-        { { printf "%s/auth/verify" (include "portal.publicURL" .) | quote } }
+      ui_url: {{ printf "%s/auth/verify" (include "portal.publicURL" .) | quote }}
     recovery:
       enabled: true
-      ui_url:
-        { { printf "%s/auth/recover" (include "portal.publicURL" .) | quote } }
+      ui_url: {{ printf "%s/auth/recover" (include "portal.publicURL" .) | quote }}
       use: code
   methods:
     password:
@@ -125,7 +106,6 @@ courier:
 session:
   cookie:
     same_site: Lax
-
   lifespan: 720h
 
 feature_flags:

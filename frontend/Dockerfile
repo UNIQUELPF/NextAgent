@@ -1,3 +1,5 @@
+ARG NEXT_PUBLIC_KRATOS_PUBLIC_URL=http://www.qibiaobang.com/.ory
+
 FROM node:20-bullseye AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
@@ -13,10 +15,12 @@ COPY .npmrc ./
 RUN pnpm install --frozen-lockfile
 
 FROM base AS build
+ARG NEXT_PUBLIC_KRATOS_PUBLIC_URL
 ENV NODE_ENV=production \
   NEXT_TELEMETRY_DISABLED=1 \
   NEXT_DISABLE_ESLINT=1 \
   NEXT_DISABLE_TYPECHECK=1
+ENV NEXT_PUBLIC_KRATOS_PUBLIC_URL=${NEXT_PUBLIC_KRATOS_PUBLIC_URL}
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -24,7 +28,9 @@ RUN pnpm run build
 
 FROM node:20-bullseye AS runner
 WORKDIR /app
+ARG NEXT_PUBLIC_KRATOS_PUBLIC_URL
 ENV NODE_ENV=production
+ENV NEXT_PUBLIC_KRATOS_PUBLIC_URL=${NEXT_PUBLIC_KRATOS_PUBLIC_URL}
 
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/node_modules ./node_modules

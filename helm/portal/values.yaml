@@ -3,7 +3,7 @@ global:
   imagePullSecrets: []
   storageClass: ""
   publicProtocol: http
-  publicHost: 47.100.104.230
+  publicHost: www.qibiaobang.com
 
 postgres:
   enabled: true

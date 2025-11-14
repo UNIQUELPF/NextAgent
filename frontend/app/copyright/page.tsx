@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { CopyrightWorkspace } from "@/components/copyright/workspace";
 
 export default function CopyrightIndex() {
-  redirect("/copyright/software");
+  return <CopyrightWorkspace />;
 }
