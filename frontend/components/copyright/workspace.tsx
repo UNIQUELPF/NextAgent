@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { ListChecks, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -319,11 +320,15 @@ export function CopyrightWorkspace() {
         <div className="pointer-events-none absolute bottom-0 right-0 h-56 w-56 rounded-full bg-[#7ADFFF]/30 blur-[150px]" />
         <div className="relative grid gap-8 p-6 lg:grid-cols-[1.1fr,0.9fr]">
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.4em] text-[#6F7BFF]">Overview</p>
-                <h2 className="mt-1 text-3xl font-semibold text-slate-900">执行概览</h2>
-                <p className="text-base text-slate-500">核心数据、平均时长与模型表现，一目了然。</p>
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#EEF2FF] text-[#6F7BFF]">
+                    <Sparkles className="h-5 w-5" />
+                  </span>
+                  <h2 className="text-3xl font-semibold text-slate-900">执行概览</h2>
+                </div>
+                <p className="mt-2 text-base text-slate-500">核心数据、平均时长与模型表现，一目了然。</p>
               </div>
               <Button variant="ghost" size="sm" onClick={loadStats} disabled={statsLoading} className="rounded-full border border-slate-200 px-5">
                 {statsLoading ? "刷新中..." : "刷新统计"}
@@ -382,9 +387,12 @@ export function CopyrightWorkspace() {
             </Button>
           </div>
           <form className="mt-4 grid gap-3" onSubmit={handleConfigSubmit}>
-            <div className="grid gap-2">
-              <label className="text-xs font-medium text-muted-foreground">配置别名</label>
+            <div className="grid gap-2" id="copyright-model-config">
+              <label className="text-xs font-medium text-muted-foreground" htmlFor="copyright-config-alias">
+                配置别名
+              </label>
               <input
+                id="copyright-config-alias"
                 className="rounded-lg border border-border/60 px-3 py-2 text-sm"
                 value={configForm.config_alias}
                 onChange={(event) =>
@@ -511,9 +519,11 @@ export function CopyrightWorkspace() {
 
       <section className="rounded-[40px] border border-[#E4E7EF] bg-white">
         <div className="flex flex-wrap items-center justify-between gap-4 px-6 pt-6">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[#6F7BFF]">Task Board</p>
-            <h2 className="mt-1 text-2xl font-semibold text-slate-900">任务列表</h2>
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#EEF2FF] text-[#6F7BFF]">
+              <ListChecks className="h-5 w-5" />
+            </span>
+            <h2 className="text-2xl font-semibold text-slate-900">任务列表</h2>
           </div>
           <Button variant="outline" size="sm" onClick={loadTasks} disabled={tasksLoading}>
             {tasksLoading ? "同步中..." : "刷新列表"}

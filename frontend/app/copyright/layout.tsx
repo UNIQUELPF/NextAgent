@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { FileText, PenSquare, ShieldCheck, Sparkles } from "lucide-react";
 
@@ -72,9 +73,12 @@ export default function CopyrightLayout({
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <button className="inline-flex items-center justify-center rounded-full bg-[#1B62FF] px-8 py-3 text-base font-semibold text-white shadow-lg shadow-[#1B62FF]/30 transition hover:-translate-y-0.5">
+                  <Link
+                    href="#copyright-config-alias"
+                    className="inline-flex items-center justify-center rounded-full bg-[#1B62FF] px-8 py-3 text-base font-semibold text-white shadow-lg shadow-[#1B62FF]/30 transition hover:-translate-y-0.5"
+                  >
                     立即创建作品
-                  </button>
+                  </Link>
                   <button className="inline-flex items-center justify-center rounded-full border border-[#1B62FF]/30 bg-white/90 px-8 py-3 text-base font-semibold text-[#1B62FF] shadow-sm transition hover:border-[#1B62FF]/60">
                     下载材料指南
                   </button>

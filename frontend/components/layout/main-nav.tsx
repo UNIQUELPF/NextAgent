@@ -2,19 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/", label: "首页" },
+  { href: "/copyright", label: "软件著作权益中心" },
+  { href: "/knowledge-graph", label: "知识图谱" },
   { href: "/executive-standards", label: "执行标准备案" },
   { href: "/ip-services", label: "商标版权专利" },
   { href: "/functional-food", label: "药食同源备案" },
   { href: "/cosmetics", label: "消字号备案" },
   { href: "/barcodes", label: "条形码注册" },
-  { href: "/copyright", label: "著作权" },
   { href: "/skills", label: "技能证书" },
   { href: "/systems", label: "体系认证" },
   { href: "/about", label: "关于我们" },
@@ -27,17 +28,37 @@ type MainNavProps = {
 };
 
 const SEGMENTED_COUNT = 6;
-const NAV_TYPOGRAPHY = "text-[0.9rem] font-semibold tracking-tight sm:text-[0.95rem] lg:text-base";
+const MAX_VISIBLE_SEGMENTS = 5;
+const ESTIMATED_SEGMENT_WIDTH = 150;
+const MORE_BUTTON_RESERVE = 68;
+const NAV_TYPOGRAPHY = "text-[1rem] font-semibold tracking-tight sm:text-[1.05rem] lg:text-lg";
 const NAV_ACTIVE_TEXT = "text-primary";
 const NAV_MUTED_TEXT = "text-muted-foreground group-hover:text-foreground";
 
 export function MainNav({ direction = "row", className, onNavigate }: MainNavProps) {
   const pathname = usePathname();
-  const visibleItems = NAV_ITEMS.slice(0, SEGMENTED_COUNT);
-  const overflowItems = NAV_ITEMS.slice(SEGMENTED_COUNT);
+  const [visibleCount, setVisibleCount] = useState(
+    Math.min(MAX_VISIBLE_SEGMENTS, NAV_ITEMS.length),
+  );
+  const visibleItems = NAV_ITEMS.slice(0, visibleCount);
+  const overflowItems = NAV_ITEMS.slice(visibleCount);
   const [moreOpen, setMoreOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const segmentedRef = useRef<HTMLDivElement | null>(null);
+
+  const computeVisibleSegments = useCallback((availableWidth: number) => {
+    if (direction === "column") {
+      return NAV_ITEMS.length;
+    }
+    if (!availableWidth || Number.isNaN(availableWidth)) {
+      return SEGMENTED_COUNT;
+    }
+    const maxSegments = Math.floor(
+      (availableWidth - MORE_BUTTON_RESERVE) / ESTIMATED_SEGMENT_WIDTH,
+    );
+    return Math.max(1, Math.min(NAV_ITEMS.length, maxSegments));
+  }, [direction]);
 
   useEffect(() => {
     if (!moreOpen) {
@@ -58,6 +79,38 @@ export function MainNav({ direction = "row", className, onNavigate }: MainNavPro
     return () => window.removeEventListener("mousedown", handleClick);
   }, [moreOpen]);
 
+  useEffect(() => {
+    if (direction === "column") {
+      setVisibleCount(NAV_ITEMS.length);
+      return;
+    }
+
+    const updateCount = (width: number) => {
+      setVisibleCount(
+        Math.min(MAX_VISIBLE_SEGMENTS, computeVisibleSegments(width)),
+      );
+    };
+
+    const node = segmentedRef.current;
+    if (typeof window !== "undefined" && "ResizeObserver" in window && node) {
+      const observer = new ResizeObserver((entries) => {
+        const rect = entries[0]?.contentRect;
+        if (rect) {
+          updateCount(rect.width);
+        }
+      });
+      observer.observe(node);
+      return () => observer.disconnect();
+    }
+
+    if (typeof window !== "undefined") {
+      const handleResize = () => updateCount(window.innerWidth);
+      handleResize();
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+    }
+  }, [direction, computeVisibleSegments]);
+
   return (
     <nav
       className={cn(
@@ -73,8 +126,11 @@ export function MainNav({ direction = "row", className, onNavigate }: MainNavPro
           {NAV_ITEMS.map((item) => renderListLink({ item, pathname, onNavigate }))}
         </div>
       ) : (
-        <div className="flex w-full max-w-[1200px] items-center justify-center gap-2">
-          <div className="flex w-full items-center gap-1 rounded-full bg-pure-white-ghost px-2.5 py-1.5 text-slate-600">
+        <div
+          className="flex w-full max-w-[1200px] items-center justify-center gap-2"
+          ref={segmentedRef}
+        >
+          <div className="flex items-center justify-center gap-1 rounded-full bg-pure-white-ghost px-3 py-1.5 text-slate-600">
             {visibleItems.map((item) => renderSegment({ item, pathname, onNavigate }))}
           </div>
           {overflowItems.length > 0 ? (
@@ -105,12 +161,12 @@ export function MainNav({ direction = "row", className, onNavigate }: MainNavPro
                         onNavigate?.();
                         setMoreOpen(false);
                       }}
-                className={cn(
-                  "block rounded-xl px-2.5 py-1.5 text-sm transition",
-                  pathname.startsWith(item.href)
-                    ? "bg-[#EEF0FF] font-semibold text-[#3940FF]"
-                    : "text-slate-600 hover:bg-pure-white-soft",
-                )}
+                      className={cn(
+                        "block rounded-xl px-2.5 py-1.5 text-sm transition whitespace-nowrap",
+                        pathname.startsWith(item.href)
+                          ? "bg-[#EEF0FF] font-semibold text-[#3940FF]"
+                          : "text-slate-600 hover:bg-pure-white-soft",
+                      )}
                     >
                       {item.label}
                     </Link>
@@ -141,7 +197,7 @@ function renderSegment({
       href={item.href}
       onClick={onNavigate}
       className={cn(
-        "group relative flex-1 overflow-hidden rounded-full px-4 py-1.5 text-center transition-all duration-300",
+        "group relative flex-none overflow-hidden rounded-full px-3.5 py-1.5 text-center transition-all duration-300",
         isActive
           ? "bg-pure-white shadow-[0_20px_35px_-22px_rgba(90,96,255,0.85)] ring-1 ring-[#96B0FF]/60"
           : "bg-pure-white-faint hover:bg-pure-white-muted",
@@ -149,7 +205,7 @@ function renderSegment({
     >
       <span
         className={cn(
-          "inline-flex items-center justify-center rounded-full bg-pure-white px-2.5 py-0.5 shadow-sm",
+          "inline-flex items-center justify-center rounded-full bg-pure-white px-2 py-0.5 shadow-sm whitespace-nowrap",
           NAV_TYPOGRAPHY,
           isActive ? NAV_ACTIVE_TEXT : NAV_MUTED_TEXT,
         )}
@@ -182,7 +238,13 @@ function renderListLink({
           : "border-border/70 bg-pure-white-muted text-slate-600 hover:border-[#5A68FF]/40 hover:bg-pure-white-soft",
       )}
     >
-      <span className={cn("inline-flex items-center", NAV_TYPOGRAPHY, isActive ? NAV_ACTIVE_TEXT : NAV_MUTED_TEXT)}>
+      <span
+        className={cn(
+          "inline-flex items-center whitespace-nowrap",
+          NAV_TYPOGRAPHY,
+          isActive ? NAV_ACTIVE_TEXT : NAV_MUTED_TEXT,
+        )}
+      >
         {item.label}
       </span>
     </Link>

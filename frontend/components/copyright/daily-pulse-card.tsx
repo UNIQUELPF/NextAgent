@@ -1,5 +1,6 @@
 "use client";
 
+import { ActivitySquare } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { fetchRuanzhuStatistics } from "@/lib/ruanzhu";
@@ -68,9 +69,11 @@ export function DailyPulseCard() {
     <div className="rounded-[32px] border border-[#E1E6F5] bg-white">
       <div className="space-y-6 p-6">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.4em] text-[#6F7BFF]">Daily Pulse</p>
-            <h2 className="mt-1 text-2xl font-semibold text-slate-900">今日进度播报</h2>
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#EEF2FF] text-[#6F7BFF]">
+              <ActivitySquare className="h-5 w-5" />
+            </span>
+            <h2 className="text-2xl font-semibold text-slate-900">今日进度播报</h2>
           </div>
           <span className="text-xs text-slate-400">{loading ? "同步中" : "数据已更新"}</span>
         </div>

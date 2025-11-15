@@ -1,0 +1,1241 @@
+"use client";
+
+<<<<<<< HEAD
+import dynamic from "next/dynamic";
+import {
+  ChangeEvent,
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import type { ForceGraphMethods } from "react-force-graph-2d";
+
+import { motion } from "framer-motion";
+import {
+  AlertCircle,
+  ArrowRight,
+  FileDown,
+  Loader2,
+  Network,
+  RefreshCcw,
+  Search,
+  Sparkles,
+} from "lucide-react";
+import { SummaryCards } from "@/components/dashboard/summary-cards";
+import { PipelineProgress } from "@/components/dashboard/pipeline-progress";
+import { ActivityFeed } from "@/components/dashboard/activity-feed";
+import { Button } from "@/components/ui/button";
+
+const quickLinks = [
+  { title: "创建著作权任务", description: "导入源码与研发材料，自动生成交付清单。", href: "/copyright/new" },
+  { title: "质量检测助手", description: "一键生成测试报告、覆盖矩阵与复核记录。", href: "/quality" },
+  { title: "行业政策洞察", description: "实时同步各地备案政策与合规要点。", href: "/insights" },
+];
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:7888";
+const SAMPLE_COMPANY_NAME = "昆仑白泽咨询（枣庄）有限公司";
+
+type Qualification = {
+  name: string;
+  priority?: string | null;
+  status?: string | null;
+  reason?: string | null;
+  policy_ref?: string | null;
+  condition?: string | null;
+  number?: string | null;
+  category?: string | null;
+  authority?: string | null;
+  valid_from?: string | null;
+  valid_to?: string | null;
+  source?: string | null;
+  matches?: Record<string, unknown>;
+  matches_scope?: string[];
+  matches_industry?: string[];
+  [key: string]: unknown;
+};
+
+type CompanyInfo = {
+  name?: string;
+  creditCode?: string;
+  industry?: string;
+  businessScope?: string;
+  regCapital?: string;
+  legalPersonName?: string;
+  regLocation?: string;
+  establishedDate?: string;
+  establishDate?: string;
+  foundDate?: string;
+  registeredDate?: string;
+  regDate?: string;
+  setupDate?: string;
+};
+
+type DiagnoseData = {
+  company?: CompanyInfo;
+  existing?: Qualification[];
+  must?: Qualification[];
+  recommended?: Qualification[];
+  file_url?: { pdf_url?: string | null; csv_url?: string | null };
+  graph?: { nodes?: unknown[]; edges?: unknown[] };
+};
+
+type DiagnoseResponse = { code: number; message: string; data: DiagnoseData | null };
+
+type FetchOptions = {
+  payload?: { name?: string; credit_code?: string | null };
+  signal?: AbortSignal;
+};
+
+type GraphNode = {
+  id: string;
+  label: string;
+  type: string;
+  properties?: Record<string, unknown>;
+};
+
+type GraphEdge = {
+  source: string | { id: string };
+  target: string | { id: string };
+  type: string;
+  label?: string;
+  properties?: Record<string, unknown>;
+};
+
+type GraphData = { nodes: GraphNode[]; edges: GraphEdge[] };
+type GraphResponse = { code: number; message: string; data: GraphData | null };
+
+const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false });
+
+const GRAPH_TYPE_LABELS: Record<string, string> = {
+  company: "企业主体",
+  industry: "所属行业",
+  location: "注册地址",
+  existing: "已办理资质",
+  existingqualification: "已办理资质",
+  requiredqualification: "必须补齐资质",
+  must: "必须补齐资质",
+  recommendedqualification: "建议办理资质",
+  recommended: "建议办理资质",
+};
+
+const EDGE_PREVIEW_LIMIT = 6;
+
+const GRAPH_TYPE_COLORS: Record<string, string> = {
+  company: "#6366f1",
+  industry: "#0ea5e9",
+  location: "#a855f7",
+  existing: "#f59e0b",
+  existingqualification: "#f59e0b",
+  recommendedqualification: "#22c55e",
+  recommended: "#22c55e",
+  requiredqualification: "#f97316",
+  must: "#f97316",
+  other: "#94a3b8",
+};
+
+// 图例显示顺序（只展示当前图中实际出现的类型）
+const LEGEND_ORDER: Array<keyof typeof GRAPH_TYPE_COLORS> = [
+  "company",
+  "existing",
+  "industry",
+  "must",
+  "location",
+  "recommended",
+  "other",
+];
+
+const normalizeNodeType = (input?: string): string => {
+  if (!input) return "other";
+  const value = input.toLowerCase();
+  if (GRAPH_TYPE_LABELS[value]) return value;
+  if (value.includes("recommend")) return "recommended";
+  if (value.includes("existing")) return "existing";
+  if (value.includes("required") || value.includes("must") || value.includes("needs")) return "must";
+  if (value.includes("industry")) return "industry";
+  if (value.includes("location") || value.includes("address")) return "location";
+  if (value.includes("company")) return "company";
+  return "other";
+};
+
+const truncateLabel = (value: string, max = 14): string =>
+  value.length <= max ? value : `${value.slice(0, max)}…`;
+
+const formatGraphValue = (value: unknown): string => {
+  if (value === null || value === undefined) return "";
+  if (Array.isArray(value)) return value.filter(Boolean).join("、");
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+  return String(value);
+};
+
+type VisualNode = GraphNode & {
+  typeKey: string;
+  color: string;
+  val: number;
+  label: string;
+  fullLabel: string;
+};
+
+type VisualLink = GraphEdge & { label: string };
+
+function DiagnosisCard() {
+  const [query, setQuery] = useState("");
+  const [diagnosis, setDiagnosis] = useState<DiagnoseData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastQuery, setLastQuery] = useState("");
+  const [graphData, setGraphData] = useState<GraphData | null>(null);
+  const [graphLoading, setGraphLoading] = useState(false);
+  const [graphError, setGraphError] = useState<string | null>(null);
+  const graphRef = useRef<ForceGraphMethods | null>(null);
+  const [activeGraphNode, setActiveGraphNode] = useState<VisualNode | null>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+
+  // 图容器引用 & 宽高（用于传给 ForceGraph2D）
+  const graphWrapRef = useRef<HTMLDivElement | null>(null);
+  const [graphSize, setGraphSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+
+  // 保存居中函数引用，避免“先用后声明”
+  const recenterGraphRef = useRef<() => void>(() => {});
+
+  // 统一从 edge.source / edge.target 中取 ID
+  const getId = (v: unknown): string => {
+    if (typeof v === "string" || typeof v === "number") return String(v);
+    if (v && typeof v === "object" && "id" in (v as any)) return String((v as any).id);
+    return String(v ?? "");
+  };
+
+  const fetchData = useCallback(async ({ payload, signal }: FetchOptions) => {
+    const trimmedName = payload?.name?.trim();
+    const trimmedCode = payload?.credit_code?.trim() ?? null;
+    if (!trimmedName && !trimmedCode) {
+      setError("请输入企业名称后再搜索");
+      setDiagnosis(null);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setGraphData(null);
+    setGraphError(null);
+    setGraphLoading(false);
+    setActiveGraphNode(null);
+    setHoveredNodeId(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/diagnose`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...(trimmedName ? { name: trimmedName } : {}),
+          ...(trimmedCode ? { credit_code: trimmedCode } : {}),
+        }),
+        signal,
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payloadData: DiagnoseResponse = await response.json();
+      if (payloadData.code !== 0 || !payloadData.data)
+        throw new Error(payloadData.message || "诊断接口返回异常");
+      setDiagnosis(payloadData.data);
+      setLastQuery(trimmedName || trimmedCode || "");
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      console.error("[diagnose]", err);
+      setError(err instanceof Error ? err.message : "诊断失败");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => setQuery(e.target.value);
+
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const trimmed = query.trim();
+    if (!trimmed) return setError("请输入企业名称后再搜索");
+    fetchData({ payload: { name: trimmed } });
+  };
+
+  // 使用 ref 调用居中；依赖数组置空，避免先用后声明
+  const fetchGraph = useCallback(async (companyName: string) => {
+    const trimmedName = companyName.trim();
+    if (!trimmedName) return setGraphError("请先输入企业名称并完成诊断");
+
+    setGraphLoading(true);
+    setGraphError(null);
+    setGraphData(null);
+    setHoveredNodeId(null);
+    setActiveGraphNode(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/graph/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ company_name: trimmedName }),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload: GraphResponse = await response.json();
+      if (payload.code !== 0 || !payload.data)
+        throw new Error(payload.message || "知识图谱接口返回异常");
+
+      setGraphData(payload.data);
+      // 写入后下一帧触发一次居中（通过 ref）
+      requestAnimationFrame(() => setTimeout(() => recenterGraphRef.current?.(), 0));
+    } catch (err) {
+      console.error("[graph]", err);
+      setGraphError(err instanceof Error ? err.message : "知识图谱生成失败");
+    } finally {
+      setGraphLoading(false);
+    }
+  }, []);
+
+  const handleGenerateGraph = useCallback(() => {
+    const targetName = diagnosis?.company?.name?.trim() || lastQuery || query.trim();
+    if (!targetName) return setGraphError("请先输入企业名称并完成诊断");
+    fetchGraph(targetName);
+  }, [diagnosis?.company?.name, fetchGraph, lastQuery, query]);
+
+  const handleRefresh = () => {
+    const target = lastQuery || query.trim();
+    if (!target) return setError("请输入企业名称后再搜索");
+    fetchData({ payload: { name: target } });
+  };
+
+  const company = diagnosis?.company;
+  const established =
+    company?.establishedDate ??
+    company?.establishDate ??
+    company?.setupDate ??
+    company?.foundDate ??
+    company?.registeredDate ??
+    company?.regDate;
+  const companyName = company?.name;
+  const companyCreditCode = company?.creditCode;
+  const companyRegCapital = company?.regCapital;
+  const companyIndustry = company?.industry;
+  const companyLegalPerson = company?.legalPersonName;
+  const companyRegLocation = company?.regLocation;
+  const companyBusinessScope = company?.businessScope;
+
+  const companySummary = useMemo(
+    () =>
+      [
+        { label: "企业名称", value: companyName },
+        { label: "统一社会信用代码", value: companyCreditCode },
+        { label: "成立时间", value: established },
+        { label: "注册资本", value: companyRegCapital },
+        { label: "所属行业", value: companyIndustry },
+        { label: "法定代表人", value: companyLegalPerson },
+        { label: "注册地址", value: companyRegLocation },
+      ].filter((item) => Boolean(item.value)),
+    [
+      companyName,
+      companyCreditCode,
+      companyRegCapital,
+      companyIndustry,
+      companyLegalPerson,
+      companyRegLocation,
+      established,
+    ]
+  );
+
+  const businessScope = companyBusinessScope ?? "暂无经营范围信息，建议检查工商信息或稍后重试。";
+  const existing = diagnosis?.existing ?? [];
+  const must = diagnosis?.must ?? [];
+  const recommended = diagnosis?.recommended ?? [];
+  const effectiveQuery = lastQuery || query.trim();
+  const primaryName = companyName?.trim();
+  const displayName =
+    primaryName && primaryName.length > 0 ? primaryName : effectiveQuery || "企业资质诊断";
+  const displayInitial = displayName.slice(0, 1) || "企";
+
+  // ---- 可视化数据：去重 + 去孤点 + 过滤残边（安全 ID） + 径向布局 ----
+  const graphVisualizationData = useMemo(() => {
+    if (!graphData) return null;
+
+    // 1) label+type 去重
+    const seen = new Set<string>();
+    const normalizedNodes = graphData.nodes.filter((n) => {
+      const rawType = typeof n.type === "string" ? n.type : "";
+      theKey: {
+        const key = `${(n.label ?? n.id)?.toString().trim()}__${rawType}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+      }
+      return true;
+    });
+
+    // 2) 统计度数（统一用字符串 ID）
+    const degree = new Map<string, number>();
+    normalizedNodes.forEach((n) => degree.set(String(n.id), 0));
+    graphData.edges.forEach((e) => {
+      const s = getId(e.source);
+      const t = getId(e.target);
+      if (degree.has(s)) degree.set(s, (degree.get(s) ?? 0) + 1);
+      if (degree.has(t)) degree.set(t, (degree.get(t) ?? 0) + 1);
+    });
+
+    // 3) 去孤点（公司节点保留）并映射可视属性
+    const nodes: VisualNode[] = normalizedNodes
+      .filter((n) => {
+        const rawType = typeof n.type === "string" ? n.type : undefined;
+        const propertyType =
+          typeof (n as any).properties?.["type"] === "string"
+            ? ((n as any).properties?.["type"] as string)
+            : typeof (n as any).properties?.["node_type"] === "string"
+            ? ((n as any).properties?.["node_type"] as string)
+            : undefined;
+        const typeKey = normalizeNodeType(propertyType ?? rawType);
+        if (typeKey === "company") return true;
+        return (degree.get(String(n.id)) ?? 0) > 0;
+      })
+      .map((node) => {
+        const rawType = typeof node.type === "string" ? node.type : undefined;
+        const propertyType =
+          typeof node.properties?.["type"] === "string"
+            ? (node.properties?.["type"] as string)
+            : typeof node.properties?.["node_type"] === "string"
+            ? (node.properties?.["node_type"] as string)
+            : undefined;
+        const normalizedType = normalizeNodeType(propertyType ?? rawType);
+        const baseLabel =
+          typeof node.label === "string" && node.label.trim().length > 0 ? node.label : node.id;
+
+        return {
+          ...node,
+          typeKey: normalizedType,
+          color: GRAPH_TYPE_COLORS[normalizedType] ?? GRAPH_TYPE_COLORS.other,
+          val: normalizedType === "company" ? 14 : 8,
+          label: truncateLabel(String(baseLabel)),
+          fullLabel: String(baseLabel),
+        };
+      });
+
+    const validIds = new Set(nodes.map((n) => String(n.id)));
+
+    // 4) 过滤残边并回写成字符串 ID
+    const links: VisualLink[] = graphData.edges
+      .filter((e) => validIds.has(getId(e.source)) && validIds.has(getId(e.target)))
+      .map((edge) => ({
+        ...edge,
+        source: getId(edge.source),
+        target: getId(edge.target),
+        label: edge.label ?? edge.type ?? "",
+      }));
+
+    // 5) 径向布局：公司居中，直连邻居等角分布
+    const company = nodes.find((n) => n.typeKey === "company");
+    if (company) {
+      (company as any).x = 0;
+      (company as any).y = 0;
+      (company as any).fx = 0;
+      (company as any).fy = 0;
+
+      const compId = String(company.id);
+      const neighborIdSet = new Set<string>();
+      links.forEach((l: any) => {
+        const s = String(l.source);
+        const t = String(l.target);
+        if (s === compId && t !== compId) neighborIdSet.add(t);
+        if (t === compId && s !== compId) neighborIdSet.add(s);
+      });
+      const neighbors = nodes.filter((n) => n.id !== company.id && neighborIdSet.has(String(n.id)));
+
+      const weight = (n: VisualNode) =>
+        n.typeKey === "must" ? 0 : n.typeKey === "existing" ? 1 : n.typeKey === "recommended" ? 2 : 3;
+      neighbors.sort((a, b) => weight(a) - weight(b) || a.fullLabel.localeCompare(b.fullLabel));
+
+      const R = Math.max(260, 60 + neighbors.length * 22);
+      const step = (2 * Math.PI) / Math.max(1, neighbors.length);
+      neighbors.forEach((n, i) => {
+        const theta = i * step - Math.PI / 2;
+        (n as any).x = R * Math.cos(theta);
+        (n as any).y = R * Math.sin(theta);
+      });
+
+      // 公司相关的边统一“由内向外”
+      links.forEach((l: any) => {
+        const s = String(l.source);
+        const t = String(l.target);
+        if (t === compId && s !== compId) {
+          l.source = compId;
+          l.target = s;
+        }
+      });
+    }
+
+    return { nodes, links };
+  }, [graphData]);
+
+  const graphSummary = useMemo(() => {
+    if (!graphVisualizationData) return null;
+    const groups = graphVisualizationData.nodes.reduce<Record<string, VisualNode[]>>((acc, node) => {
+      if (!acc[node.typeKey]) acc[node.typeKey] = [];
+      acc[node.typeKey].push(node);
+      return acc;
+    }, {});
+    return {
+      groups,
+      totalNodes: graphVisualizationData.nodes.length,
+      totalEdges: graphVisualizationData.links.length,
+    };
+  }, [graphVisualizationData]);
+
+  const nodeMap = useMemo(() => {
+    if (!graphVisualizationData) return null;
+    return new Map(graphVisualizationData.nodes.map((node) => [node.id, node]));
+  }, [graphVisualizationData]);
+
+  const activeNodeProperties = useMemo(() => {
+    if (!activeGraphNode) return [];
+    return Object.entries(activeGraphNode.properties ?? {})
+      .map(([key, value]) => ({ key, value: formatGraphValue(value) }))
+      .filter((entry) => entry.value);
+  }, [activeGraphNode]);
+
+  const activeNodeRelationships = useMemo(() => {
+    if (!graphData || !activeGraphNode) return [];
+    return graphData.edges
+      .filter((edge) => getId(edge.source) === activeGraphNode.id || getId(edge.target) === activeGraphNode.id)
+      .slice(0, EDGE_PREVIEW_LIMIT)
+      .map((edge) => {
+        const otherNodeId = getId(edge.source) === activeGraphNode.id ? getId(edge.target) : getId(edge.source);
+        const counterpart = nodeMap?.get(otherNodeId);
+        return { edge, otherNodeLabel: counterpart?.fullLabel ?? String(otherNodeId) };
+      });
+  }, [activeGraphNode, graphData, nodeMap]);
+
+  // 公司节点首帧固定在中心，短暂稳定后释放
+  useEffect(() => {
+    if (!graphVisualizationData) return;
+    const comp = graphVisualizationData.nodes.find((n) => n.typeKey === "company") as any;
+    if (!comp) return;
+    const timer = setTimeout(() => {
+      if ("fx" in comp) delete comp.fx;
+      if ("fy" in comp) delete comp.fy;
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [graphVisualizationData]);
+
+  // 力导参数：更强斥力/分层距离/更快收敛（防御式）
+  useEffect(() => {
+    if (!graphVisualizationData || !graphRef.current) return;
+    const fg = graphRef.current as any;
+    const d3Force = typeof fg.d3Force === "function" ? fg.d3Force : null;
+    const charge = d3Force ? d3Force("charge") : null;
+    if (charge && typeof charge.strength === "function") charge.strength(-380);
+    const link = d3Force ? d3Force("link") : null;
+    if (link && typeof link.distance === "function") {
+      link.distance((l: any) =>
+        String(l?.type ?? "").toLowerCase().includes("must")
+          ? 70
+          : String(l?.type ?? "").toLowerCase().includes("recommend")
+          ? 95
+          : 80
+      );
+    }
+    if (typeof fg.d3VelocityDecay === "function") fg.d3VelocityDecay(0.35);
+  }, [graphVisualizationData]);
+
+  // === 新版：基于包围盒的稳健居中（直接使用我们传给图的 nodes）===
+  const hasCoords = (n: any) => Number.isFinite(n?.x) && Number.isFinite(n?.y);
+
+  const recenterGraph = useCallback(() => {
+    const fg: any = graphRef.current;
+    if (!fg || !graphVisualizationData) return;
+
+    requestAnimationFrame(() => {
+      const nodes: any[] = (graphVisualizationData.nodes ?? []) as any[];
+      const ready = nodes.filter(hasCoords);
+      if (!ready.length) {
+        setTimeout(() => recenterGraph(), 120);
+        return;
+      }
+
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const n of ready) {
+        if (n.x < minX) minX = n.x;
+        if (n.x > maxX) maxX = n.x;
+        if (n.y < minY) minY = n.y;
+        if (n.y > maxY) maxY = n.y;
+      }
+      const w = maxX - minX, h = maxY - minY;
+      const cx = (minX + maxX) / 2;
+      const cy = (minY + maxY) / 2;
+
+      if (typeof fg.centerAt === "function") fg.centerAt(cx, cy, 450);
+      if (!Number.isFinite(w) || !Number.isFinite(h) || w < 1e-3 || h < 1e-3) {
+        if (typeof fg.zoom === "function") fg.zoom(1.6, 450);
+      } else if (typeof fg.zoomToFit === "function") {
+        fg.zoomToFit(450, 60, () => true);
+      }
+    });
+  }, [graphVisualizationData]);
+
+  // 同步：把最新的 recenterGraph 放进 ref（供 fetchGraph 调用）
+  useEffect(() => {
+    recenterGraphRef.current = recenterGraph;
+  }, [recenterGraph]);
+
+  // 监听图容器尺寸变化，更新 width/height 并在下一帧居中
+  useEffect(() => {
+    const el = graphWrapRef.current;
+    if (!el) return;
+    let raf = 0;
+    const ro = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (!rect) return;
+      setGraphSize({ w: Math.floor(rect.width), h: Math.floor(rect.height) });
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => recenterGraph());
+    });
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      cancelAnimationFrame(raf);
+    };
+  }, [recenterGraph]);
+
+  // 数据变更/窗口尺寸变化时，自动回中
+  useEffect(() => {
+    if (!graphVisualizationData) return;
+    recenterGraph();
+    const onResize = () => recenterGraph();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [graphVisualizationData, recenterGraph]);
+
+  const formatMatches = (value: unknown): string | null => {
+    if (!value) return null;
+    if (Array.isArray(value)) {
+      const filtered = value.filter(Boolean);
+      return filtered.length ? filtered.join("、") : null;
+    }
+    if (typeof value === "string") return value;
+    return null;
+  };
+
+  const renderExistingSection = () => {
+    if (!existing.length) return <p className="text-sm text-muted-foreground">暂无已办理资质记录。</p>;
+    return existing.map((item, index) => {
+      const key = `${item.name}-${item.number ?? index}`;
+      const validity =
+        item.valid_from || item.valid_to ? `${item.valid_from ?? "未知"} 至 ${item.valid_to ?? "未知"}` : null;
+      return (
+        <div
+          key={key}
+          className="space-y-2 rounded-2xl border border-border/60 bg-white/85 px-5 py-4 text-sm shadow-sm dark:bg-slate-900/60"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-medium text-foreground/90">· {item.name}</p>
+            {item.status && (
+              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs text-primary">状态：{item.status}</span>
+            )}
+            {item.priority && (
+              <span className="rounded-full bg-secondary/10 px-2.5 py-0.5 text-xs text-secondary-foreground">
+                等级：{item.priority}
+              </span>
+            )}
+          </div>
+          {item.number && <p className="text-xs text-muted-foreground">证书编号：{item.number}</p>}
+          {item.authority && <p className="text-xs text-muted-foreground">发证机关：{item.authority}</p>}
+          {validity && <p className="text-xs text-muted-foreground">有效期：{validity}</p>}
+          {item.source && <p className="text-xs text-muted-foreground">来源：{item.source}</p>}
+        </div>
+      );
+    });
+  };
+
+  const renderMustSection = () => {
+    if (!must.length) return <p className="text-sm text-muted-foreground">暂无必须补齐资质。</p>;
+    return must.map((item, index) => {
+      const scopeMatches = formatMatches(item.matches?.scope) ?? formatMatches((item as Qualification).matches_scope);
+      const industryMatches =
+        formatMatches(item.matches?.industry) ?? formatMatches((item as Qualification).matches_industry);
+      return (
+        <div
+          key={`${item.name}-${item.priority ?? index}`}
+          className="space-y-2 rounded-2xl border border-primary/30 bg-primary/5 px-5 py-4 text-sm shadow-sm"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-medium text-foreground/90">· {item.name}</p>
+            {item.priority && (
+              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs text-primary">等级：{item.priority}</span>
+            )}
+          </div>
+          {item.policy_ref && <p className="text-xs text-muted-foreground">政策参考：{item.policy_ref}</p>}
+          {item.reason && <p className="text-xs leading-relaxed text-muted-foreground">诊断原因：{item.reason}</p>}
+          {item.condition && <p className="text-xs text-muted-foreground">办理条件：{item.condition}</p>}
+          {scopeMatches && <p className="text-xs text-muted-foreground">经营范围命中：{scopeMatches}</p>}
+          {industryMatches && <p className="text-xs text-muted-foreground">行业命中：{industryMatches}</p>}
+        </div>
+      );
+    });
+  };
+
+  const renderRecommendedSection = () => {
+    if (!recommended.length) return <p className="text-sm text-muted-foreground">暂无建议办理资质。</p>;
+    return recommended.map((item, index) => {
+      const scopeMatches = formatMatches(item.matches?.scope) ?? formatMatches((item as Qualification).matches_scope);
+      const industryMatches =
+        formatMatches(item.matches?.industry) ?? formatMatches((item as Qualification).matches_industry);
+      return (
+        <div
+          key={`${item.name}-${item.priority ?? index}`}
+          className="space-y-2 rounded-2xl border border-secondary/40 bg-secondary/10 px-5 py-4 text-sm shadow-sm"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-medium text-foreground/90">· {item.name}</p>
+            {item.priority && (
+              <span className="rounded-full bg-secondary/20 px-2.5 py-0.5 text-xs text-secondary-foreground">
+                等级：{item.priority}
+              </span>
+            )}
+          </div>
+          {item.reason && <p className="text-xs leading-relaxed text-muted-foreground">增值建议：{item.reason}</p>}
+          {item.policy_ref && <p className="text-xs text-muted-foreground">参考政策：{item.policy_ref}</p>}
+          {industryMatches && <p className="text-xs text-muted-foreground">行业命中：{industryMatches}</p>}
+          {scopeMatches && <p className="text-xs text-muted-foreground">范围命中：{scopeMatches}</p>}
+          {item.source && <p className="text-xs text-muted-foreground">推荐来源：{item.source}</p>}
+        </div>
+      );
+    });
+  };
+
+  const renderGraphContent = () => {
+    if (graphLoading) {
+      return (
+        <div className="flex items-center gap-2 rounded-2xl border border-border/60 bg-background/80 px-4 py-3 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          正在生成知识图谱...
+        </div>
+      );
+    }
+
+    if (graphError) {
+      return (
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-border/60 bg-background/85 p-4 text-center">
+          <p className="text-sm font-medium text-destructive">知识图谱生成失败</p>
+          <p className="text-xs text-muted-foreground">{graphError}</p>
+          <button
+            type="button"
+            onClick={handleGenerateGraph}
+            className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-white/70 px-3 py-1 text-xs font-medium text-primary transition hover:border-primary/50 hover:text-primary/85 dark:bg-slate-900/50"
+          >
+            <RefreshCcw className="h-3.5 w-3.5" />
+            重新生成
+          </button>
+        </div>
+      );
+    }
+
+    if (!graphVisualizationData) {
+      return <p className="text-sm text-muted-foreground">点击“生成知识图谱”按钮查看企业节点与关系。</p>;
+    }
+
+    return (
+      <div className="flex flex-col gap-4 lg:flex-row">
+        <div
+          ref={graphWrapRef}
+          className="relative min-h-[360px] flex-1 overflow-hidden rounded-3xl border border-border/60 bg-white/80 p-2 dark:bg-slate-900/40"
+        >
+          <ForceGraph2D
+            ref={graphRef as any}
+            width={Math.max(320, graphSize.w)}
+            height={Math.max(320, graphSize.h)}
+            graphData={graphVisualizationData}
+            nodeRelSize={6}
+            nodeVal={(node) => (node as VisualNode).val}
+            nodeColor={(node) => (node as VisualNode).color}
+            backgroundColor="transparent"
+            linkDirectionalArrowLength={6}
+            linkDirectionalArrowRelPos={0.98}
+            linkCurvature={0.1}
+            linkColor={() => "rgba(148, 163, 184, 0.45)"}
+            linkDirectionalArrowColor={() => "rgba(148, 163, 184, 0.65)"}
+            linkLabel={(link) => (link as VisualLink).label}
+            onNodeClick={(node) => setActiveGraphNode(node as VisualNode)}
+            onNodeHover={(node) => setHoveredNodeId(node ? (node as VisualNode).id : null)}
+            cooldownTicks={120}
+            onEngineStop={recenterGraph}
+            nodeCanvasObject={(node, ctx, globalScale) => {
+              const visualNode = node as VisualNode & { x?: number; y?: number };
+              const radius = Math.max((visualNode.val ?? 8) / 2.5, 6);
+              const x = visualNode.x ?? 0;
+              const y = visualNode.y ?? 0;
+
+              ctx.beginPath();
+              ctx.fillStyle = visualNode.color;
+              ctx.arc(x, y, radius, 0, 2 * Math.PI, false);
+              ctx.fill();
+
+              if (activeGraphNode?.id === visualNode.id || hoveredNodeId === visualNode.id) {
+                ctx.lineWidth = 2 / globalScale;
+                ctx.strokeStyle = activeGraphNode?.id === visualNode.id ? "#1d4ed8" : "#94a3b8";
+                ctx.stroke();
+              }
+
+              const showLabel =
+                activeGraphNode?.id === visualNode.id ||
+                hoveredNodeId === visualNode.id ||
+                globalScale > 1.4 ||
+                visualNode.typeKey === "company";
+              if (showLabel) {
+                const label = visualNode.label;
+                const fontSize = Math.max(12 / globalScale, 4);
+                ctx.font = `${fontSize}px sans-serif`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "top";
+                ctx.fillStyle = "#0f172a";
+                ctx.fillText(label, x, y + radius + 3);
+              }
+            }}
+            nodePointerAreaPaint={(node, color, ctx) => {
+              const visualNode = node as VisualNode & { x?: number; y?: number };
+              const x = visualNode.x ?? 0;
+              const y = visualNode.y ?? 0;
+              const radius = Math.max((visualNode.val ?? 8) / 2.5, 6);
+              ctx.fillStyle = color;
+              ctx.beginPath();
+              ctx.arc(x, y, radius + 6, 0, 2 * Math.PI, false);
+              ctx.fill();
+            }}
+          />
+
+          {/* —— 右下角颜色图例 —— */}
+          {(() => {
+            const present = new Set(
+              (graphVisualizationData.nodes as VisualNode[]).map((n) => n.typeKey)
+            );
+            const legendKeys = LEGEND_ORDER.filter((k) => present.has(k));
+            if (legendKeys.length === 0) return null;
+
+            return (
+              <div
+                className="pointer-events-auto absolute bottom-3 right-3 z-10 rounded-xl border border-border/60 bg-white/90 p-2 shadow-sm backdrop-blur dark:bg-slate-900/80"
+                style={{ minWidth: 160 }}
+              >
+                <div className="mb-1 px-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  颜色图例
+                </div>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                  {legendKeys.map((key) => (
+                    <div key={key} className="flex items-center gap-2">
+                      <span
+                        className="inline-block h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: GRAPH_TYPE_COLORS[key] }}
+                        aria-hidden
+                      />
+                      <span className="text-foreground/90">
+                        {GRAPH_TYPE_LABELS[key] ?? key}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+
+        <div className="w-full max-w-xs rounded-3xl border border-border/60 bg-white/80 p-4 text-xs shadow-sm dark:bg-slate-900/40">
+          <div className="space-y-3">
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">节点概览</p>
+              <p className="mt-1 text-base font-semibold text-foreground/90">
+                {activeGraphNode?.fullLabel ?? "点击节点查看详情"}
+              </p>
+              {activeGraphNode && (
+                <span className="mt-2 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-[11px] font-medium text-primary">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: activeGraphNode.color }} />
+                  {GRAPH_TYPE_LABELS[activeGraphNode.typeKey] ?? activeGraphNode.typeKey.toUpperCase()}
+                </span>
+              )}
+            </div>
+            {graphSummary && (
+              <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-background/70 px-3 py-2">
+                <div>
+                  <p className="text-[10px] text-muted-foreground">节点数</p>
+                  <p className="text-sm font-semibold">{graphSummary.totalNodes}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground">关系数</p>
+                  <p className="text-sm font-semibold">{graphSummary.totalEdges}</p>
+                </div>
+              </div>
+            )}
+            {activeNodeProperties.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[11px] font-medium text-muted-foreground">属性</p>
+                <div className="space-y-1.5">
+                  {activeNodeProperties.map((item) => (
+                    <div key={item.key} className="rounded-xl border border-border/60 bg-white/90 px-3 py-2 dark:bg-slate-900/60">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{item.key}</p>
+                      <p className="mt-1 text-[11px] text-foreground/90">{item.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {activeNodeRelationships.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[11px] font-medium text-muted-foreground">关联</p>
+                <ul className="space-y-1.5">
+                  {activeNodeRelationships.map(({ edge, otherNodeLabel }) => (
+                    <li
+                      key={`${getId(edge.source)}-${getId(edge.target)}-${edge.type}`}
+                      className="rounded-xl border border-dashed border-border/60 bg-background/60 px-3 py-2 text-[11px] text-muted-foreground"
+                    >
+                      <span className="font-medium text-foreground/80">{edge.label ?? edge.type ?? "关联"}</span>
+                      <span className="mx-1 text-muted-foreground/70">→</span>
+                      <span className="text-foreground/85">{otherNodeLabel}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderIdleState = (
+    <div className="flex flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-border/60 bg-background/85 p-10 text-center text-sm text-muted-foreground">
+      <p>输入企业名称并点击“搜索企业资质诊断”即可查看诊断结果。</p>
+      <p className="text-xs text-muted-foreground/80">示例企业：{SAMPLE_COMPANY_NAME}</p>
+    </div>
+  );
+
+  const renderLoadingState = (
+    <div className="space-y-4">
+      <div className="flex items-center gap-4">
+        <div className="h-16 w-16 rounded-2xl border border-border/40 bg-muted/40" />
+        <div className="flex flex-col gap-2">
+          <div className="h-4 w-40 animate-pulse rounded bg-muted/60" />
+          <div className="h-3 w-28 animate-pulse rounded bg-muted/40" />
+        </div>
+      </div>
+      <div className="h-3 w-full animate-pulse rounded bg-muted/40" />
+      <div className="space-y-3">
+        {Array.from({ length: 3 }).map((_, idx) => (
+          <div key={`skeleton-${idx}`} className="h-16 animate-pulse rounded-2xl border border-border/60 bg-muted/30" />
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderErrorState = (
+    <div className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-border/60 bg-background/95 p-8 text-center">
+      <AlertCircle className="h-8 w-8 text-destructive" />
+      <div>
+        <p className="text-base font-semibold text-foreground/90">诊断数据获取失败</p>
+        <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+      </div>
+      <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
+        <RefreshCcw className="mr-1 h-4 w-4" />
+        重试
+      </Button>
+    </div>
+  );
+
+  const renderSuccessState = (
+    <div className="space-y-8">
+      <div className="space-y-4">
+        <div className="flex items-start gap-4">
+          <div className="relative h-16 w-16 overflow-hidden rounded-2xl border border-border/40 bg-primary/10 text-primary">
+            <span className="flex h-full w-full items-center justify-center text-xl font-semibold">
+              {displayInitial}
+            </span>
+          </div>
+          <div>
+            <h3 className="text-xl font-semibold lg:text-2xl">{displayName}</h3>
+            <p className="text-sm text-muted-foreground lg:text-base">
+              {companyIndustry ? `${companyIndustry} · 深度赋能企业数字化合规` : "深度赋能企业数字化合规"}
+            </p>
+          </div>
+        </div>
+        <p className="text-sm leading-relaxed text-muted-foreground lg:text-base whitespace-pre-line">
+          {businessScope}
+        </p>
+      </div>
+
+      <section className="space-y-3">
+        <h4 className="text-sm font-semibold text-primary sm:text-base">一、企业概况</h4>
+        <div className="grid gap-3 sm:grid-cols-2 text-sm">
+          {companySummary.map((item) => (
+            <div key={item.label} className="rounded-2xl border border-border/60 bg-white/85 px-4 py-3 shadow-sm dark:bg-slate-900/60">
+              <p className="text-xs text-muted-foreground">{item.label}</p>
+              <p className="mt-1 font-medium text-foreground/90">{item.value}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h4 className="text-sm font-semibold text-primary sm:text-base">三、已办理资质</h4>
+        <div className="space-y-3">{renderExistingSection()}</div>
+      </section>
+
+      <section className="space-y-3">
+        <h4 className="text-sm font-semibold text-primary sm:text-base">四、必须补齐资质</h4>
+        <div className="space-y-3">{renderMustSection()}</div>
+      </section>
+
+      <section className="space-y-3">
+        <h4 className="text-sm font-semibold text-primary sm:text-base">五、建议办理资质</h4>
+        <div className="space-y-3">{renderRecommendedSection()}</div>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="text-sm font-semibold text-primary sm:text-base">六、企业知识图谱</h4>
+          {graphSummary && (
+            <span className="text-xs text-muted-foreground">
+              节点 {graphSummary.totalNodes} · 关系 {graphSummary.totalEdges}
+            </span>
+          )}
+        </div>
+        {renderGraphContent()}
+      </section>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+        <div className="flex flex-wrap gap-2">
+          {companyIndustry && (
+            <span className="rounded-full border border-border/50 bg-white/70 px-3 py-1 dark:bg-slate-900/50">
+              所属行业：{companyIndustry}
+            </span>
+          )}
+          {companyRegCapital && (
+            <span className="rounded-full border border-border/50 bg-white/70 px-3 py-1 dark:bg-slate-900/50">
+              注册资本：{companyRegCapital}
+            </span>
+          )}
+          {companyRegLocation && (
+            <span className="rounded-full border border-border/50 bg-white/70 px-3 py-1 dark:bg-slate-900/50">
+              注册地址：{companyRegLocation}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {diagnosis?.file_url?.pdf_url && (
+            <a
+              href={diagnosis.file_url.pdf_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-white/70 px-3 py-1 text-xs font-medium text-primary transition hover:border-primary/50 hover:text-primary/85 dark:bg-slate-900/50"
+            >
+              <FileDown className="h-3.5 w-3.5" />
+              下载诊断报告
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={handleGenerateGraph}
+            className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-white/70 px-3 py-1 text-xs font-medium text-primary transition hover:border-primary/50 hover:text-primary/85 dark:bg-slate-900/50"
+            disabled={graphLoading || (!diagnosis && !lastQuery && !query.trim())}
+          >
+            {graphLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Network className="h-3.5 w-3.5" />}
+            生成知识图谱
+          </button>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-white/70 px-3 py-1 text-xs font-medium text-primary transition hover:border-primary/50 hover:text-primary/85 dark:bg-slate-900/50"
+            disabled={loading || (!lastQuery && !query.trim())}
+          >
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />}
+            刷新数据
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="glass relative flex h-full flex-col overflow-hidden rounded-3xl border border-border/60 bg-background/95 p-8">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/20" />
+      <div className="relative flex h-full flex-col gap-6">
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-white/80 p-4 shadow-sm backdrop-blur-sm dark:bg-slate-900/50 sm:flex-row sm:items-center"
+        >
+          <div className="flex-1">
+            <label className="text-xs font-medium text-muted-foreground">企业名称</label>
+            <input
+              value={query}
+              onChange={handleInputChange}
+              placeholder={`请输入企业名称，例如：${SAMPLE_COMPANY_NAME}`}
+              className="mt-1 w-full rounded-xl border border-border/60 bg-background px-4 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+          <Button type="submit" size="lg" className="inline-flex w-full items-center justify-center gap-2 sm:w-auto" disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            搜索企业资质诊断
+          </Button>
+        </form>
+
+        {error && !loading ? renderErrorState : null}
+        {!error && !loading && !diagnosis ? renderIdleState : null}
+        {!error && loading && !diagnosis ? renderLoadingState : null}
+        {!loading && !error && diagnosis ? renderSuccessState : null}
+        {loading && diagnosis ? (
+          <div className="absolute inset-0 flex items-center justify-center rounded-3xl bg-background/60 backdrop-blur-sm">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              正在刷新诊断数据...
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+=======
+import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+
+import { ActionPanels } from "@/components/marketing/action-panels";
+import { CascadeMetrics } from "@/components/marketing/cascade-metrics";
+import { FeatureShowcase } from "@/components/marketing/feature-showcase";
+import { HeroSection } from "@/components/marketing/hero-section";
+import { MarketingFooter } from "@/components/marketing/marketing-footer";
+>>>>>>> origin/main
+
+export default function HomePage() {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+<<<<<<< HEAD
+    <div className="space-y-12">
+      <section className="relative">
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.18),_transparent_65%)]" />
+        <div className="container flex flex-col gap-12">
+          <div className="grid gap-10 lg:grid-cols-[1.3fr,1fr] lg:items-center">
+            <div className="space-y-6">
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+                <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  企业合规自动化平台
+                </span>
+              </motion.div>
+              <motion.h1
+                className="text-3xl font-semibold leading-tight tracking-tight lg:text-4xl xl:text-5xl"
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1, duration: 0.5 }}
+              >
+                一站式企业服务自动化平台，高效完成备案申报与材料处理。
+              </motion.h1>
+              <motion.p
+                className="max-w-3xl text-base text-muted-foreground lg:text-lg"
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.18, duration: 0.5 }}
+              >
+                自定义工作流覆盖执行标准备案、药品食品合规、条形码注册等业务场景，
+                将繁琐的材料采集、合规比对与交付封装全部交给智能代理。
+              </motion.p>
+              <motion.div className="flex flex-wrap items-center gap-3" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24, duration: 0.5 }}>
+                <Button size="lg" className="group">
+                  开始创建任务
+                  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                </Button>
+                <Button variant="ghost" size="lg">查看平台演示</Button>
+              </motion.div>
+            </div>
+            <motion.div className="hidden lg:block" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.15, duration: 0.4 }}>
+              <div className="rounded-3xl border border-border/60 bg-background/90 p-6 shadow-lg">
+                <h3 className="text-base font-semibold text-foreground/85">今日办理速览</h3>
+                <p className="mt-1 text-xs text-muted-foreground">核心业务线自动化进度</p>
+                <div className="mt-4 space-y-3 text-sm">
+                  {["执行标准备案", "著作权材料装订", "消字号备案", "体系认证"].map((item) => (
+                    <div key={item} className="flex items-center justify-between rounded-2xl border border-border/60 bg-white/85 px-4 py-3 text-sm dark:bg-slate-900/60">
+                      <span className="font-medium text-foreground/90">{item}</span>
+                      <span className="text-xs text-primary/80">自动化率 92%</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 rounded-2xl border border-dashed border-primary/45 p-4 text-sm">
+                  <p className="font-semibold">待人工复核</p>
+                  <p className="mt-1 text-xs text-muted-foreground">共有 4 个任务等待签章或线下材料上传，请在今日 18:00 前确认。</p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18, duration: 0.5, ease: "easeOut" }}>
+            <DiagnosisCard />
+          </motion.div>
+        </div>
+      </section>
+
+      <section className="container space-y-6">
+        <h2 className="text-lg font-semibold">运营指标</h2>
+        <SummaryCards />
+      </section>
+
+      <section className="container grid gap-6 xl:grid-cols-[1.4fr,1fr]">
+        <PipelineProgress />
+        <ActivityFeed />
+      </section>
+
+      <section className="container">
+        <div className="rounded-3xl border border-border/70 bg-background/70 p-8 shadow-sm">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <h2 className="text-lg font-semibold">快速入口</h2>
+              <p className="mt-1 text-sm text-muted-foreground">常用工作流入口，帮助团队快速发起业务审批。</p>
+            </div>
+            <Button variant="ghost" size="sm">管理入口</Button>
+          </div>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {quickLinks.map((link) => (
+              <motion.a
+                key={link.href}
+                href={link.href}
+                className="group relative flex flex-col gap-3 rounded-2xl border border-border/60 bg-white/70 p-4 text-left transition hover:-translate-y-1 hover:border-primary/50 hover:shadow-lg dark:bg-slate-900/50"
+                initial={{ opacity: 0, y: 18 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.4 }}
+                transition={{ duration: 0.35 }}
+              >
+                <span className="text-sm font-semibold">{link.title}</span>
+                <p className="text-xs text-muted-foreground">{link.description}</p>
+                <span className="mt-auto inline-flex items-center gap-1 text-xs font-medium text-primary">
+                  进入
+                  <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-1" />
+                </span>
+              </motion.a>
+            ))}
+          </div>
+        </div>
+      </section>
+=======
+    <div className="space-y-12 lg:space-y-16">
+      <HeroSection expanded={expanded} onToggle={() => setExpanded((prev) => !prev)} />
+      <AnimatePresence initial={false}>
+        {expanded ? (
+          <motion.div
+            key="homepage-expanded"
+            className="space-y-12 lg:space-y-16"
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 30 }}
+          >
+            <FeatureShowcase />
+            <CascadeMetrics />
+            <ActionPanels />
+            <MarketingFooter />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+>>>>>>> origin/main
+    </div>
+  );
+}

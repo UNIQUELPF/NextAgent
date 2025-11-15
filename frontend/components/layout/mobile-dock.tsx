@@ -6,8 +6,8 @@ import { Home, Layers, ShieldCheck, Phone } from "lucide-react";
 
 const DOCK_ITEMS = [
   { href: "/", label: "首页", icon: Home },
-  { href: "/executive-standards", label: "备案", icon: Layers },
-  { href: "/ip-services", label: "权益", icon: ShieldCheck },
+  { href: "/executive-standards", label: "软件著作", icon: Layers },
+  { href: "/ip-services", label: "知识图谱", icon: ShieldCheck },
   { href: "/about", label: "联系", icon: Phone },
 ];
 

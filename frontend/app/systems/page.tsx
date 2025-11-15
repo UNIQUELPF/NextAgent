@@ -1,5 +1,5 @@
 import { ComingSoonMessage } from "@/components/coming-soon-message";
 
-export default function DisinfectantIndex() {
+export default function SystemsPage() {
   return <ComingSoonMessage />;
 }

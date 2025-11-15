@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { ComingSoonMessage } from "@/components/coming-soon-message";
 
 export default function ExecutiveStandardsIndex() {
-  redirect("/executive-standards/apparel");
+  return <ComingSoonMessage />;
 }

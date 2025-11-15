@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, Settings, UserRound, X } from "lucide-react";
+import { ArrowUpRight, Menu, Settings, UserRound, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { Session } from "@ory/client";
@@ -212,7 +212,12 @@ export function SiteHeader() {
                   aria-haspopup="menu"
                   aria-label="管理控制台"
                 >
-                  <Settings className="h-5 w-5" />
+                  <Settings
+                    className={cn(
+                      "h-5 w-5 transition-transform duration-200",
+                      isAdminMenuOpen ? "rotate-90" : "rotate-0",
+                    )}
+                  />
                   控制台
                 </button>
                 <AnimatePresence>
@@ -222,19 +227,22 @@ export function SiteHeader() {
                       initial={{ opacity: 0, y: -6 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -6 }}
-                      className="absolute right-0 top-[calc(100%+8px)] z-60 w-48 rounded-2xl border border-white/80 bg-pure-white p-2 text-sm font-semibold text-slate-700 shadow-2xl shadow-[#5A68FF]/15"
+                      className="absolute right-0 top-[calc(100%+12px)] z-60 w-64 rounded-[28px] border border-white/80 bg-white/95 p-4 text-sm font-semibold text-slate-900 shadow-[0_30px_80px_rgba(90,104,255,0.2)] backdrop-blur"
                     >
-                      {ADMIN_SECTIONS.map((item) => (
-                        <Link
-                          key={item.href}
-                          role="menuitem"
-                          href={item.href}
-                          className="block rounded-xl px-3 py-2 hover:bg-slate-100"
-                          onClick={() => setIsAdminMenuOpen(false)}
-                        >
-                          {item.label}
-                        </Link>
-                      ))}
+                      <div className="space-y-2">
+                        {ADMIN_SECTIONS.map((item) => (
+                          <Link
+                            key={item.href}
+                            role="menuitem"
+                            href={item.href}
+                            className="group flex items-center justify-between rounded-2xl border border-transparent px-4 py-3 text-slate-900 transition hover:border-[#E0E6FF] hover:bg-[#F6F7FF]"
+                            onClick={() => setIsAdminMenuOpen(false)}
+                          >
+                            <span>{item.label}</span>
+                            <ArrowUpRight className="h-4 w-4 text-slate-400 transition group-hover:text-[#5A68FF]" />
+                          </Link>
+                        ))}
+                      </div>
                     </motion.div>
                   ) : null}
                 </AnimatePresence>
@@ -266,7 +274,7 @@ export function SiteHeader() {
                       <Link
                         role="menuitem"
                         href="/account/settings?section=profile"
-                        className="block rounded-xl px-3 py-2 hover:bg-slate-100"
+                        className="block rounded-xl px-3 py-2 text-slate-700 transition hover:text-[#5A68FF]"
                         onClick={() => setIsMenuOpen(false)}
                       >
                         个人信息
@@ -274,7 +282,7 @@ export function SiteHeader() {
                       <Link
                         role="menuitem"
                         href="/account/settings?section=password"
-                        className="block rounded-xl px-3 py-2 hover:bg-slate-100"
+                        className="block rounded-xl px-3 py-2 text-slate-700 transition hover:text-[#5A68FF]"
                         onClick={() => setIsMenuOpen(false)}
                       >
                         更改密码
@@ -282,7 +290,7 @@ export function SiteHeader() {
                       <button
                         type="button"
                         role="menuitem"
-                        className="flex w-full rounded-xl px-3 py-2 text-left text-destructive hover:bg-red-50"
+                        className="flex w-full rounded-xl px-3 py-2 text-left text-destructive transition hover:opacity-80"
                         onClick={() => {
                           setIsMenuOpen(false);
                           handleLogout();
@@ -303,12 +311,6 @@ export function SiteHeader() {
                 登录
               </Link>
             )}
-            <Button
-              size="lg"
-              className="hidden rounded-full bg-primary px-6 py-2.5 text-base font-semibold text-primary-foreground shadow-md shadow-primary/25 lg:inline-flex transition hover:bg-primary/90"
-            >
-              创建任务
-            </Button>
             <button
               type="button"
               className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-white/70 bg-pure-white-soft text-slate-700 shadow-sm shadow-slate-300/30 transition hover:text-[#605CFF] lg:hidden"
@@ -382,9 +384,6 @@ export function SiteHeader() {
                   登录
                 </Link>
               )}
-              <Button className="w-full rounded-2xl bg-primary py-3 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90">
-                创建任务
-              </Button>
             </div>
           </motion.div>
         )}

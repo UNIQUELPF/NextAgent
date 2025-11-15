@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { ComingSoonMessage } from "@/components/coming-soon-message";
 
 export default function IPServicesIndex() {
-  redirect("/ip-services/trademark-register");
+  return <ComingSoonMessage />;
 }
