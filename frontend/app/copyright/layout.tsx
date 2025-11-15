@@ -53,7 +53,7 @@ export default function CopyrightLayout({
 }) {
   return (
     <div className="space-y-10 text-base sm:text-lg">
-      <section className="py-10">
+      <section id="copyright-workbench" className="py-10 scroll-mt-20">
         <div className="mx-auto max-w-[90vw] px-4 2xl:max-w-[1600px]">
           <div className="relative rounded-[40px] border border-white/70 bg-gradient-to-br from-[#F5FAFF] via-[#EEF6FF] to-[#E1F0FF] p-8 shadow-[0_35px_90px_rgba(74,110,255,0.16)] lg:p-12">
             <div className="absolute inset-y-0 right-10 hidden w-64 rounded-full bg-[#5A68FF]/15 blur-3xl lg:block" />

@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/", label: "首页" },
-  { href: "/copyright", label: "软件著作权益中心" },
+  { href: "/copyright#copyright-workbench", label: "软件著作权益中心" },
   { href: "/knowledge-graph", label: "知识图谱" },
   { href: "/executive-standards", label: "执行标准备案" },
   { href: "/ip-services", label: "商标版权专利" },
@@ -34,6 +34,8 @@ const MORE_BUTTON_RESERVE = 68;
 const NAV_TYPOGRAPHY = "text-[1rem] font-semibold tracking-tight sm:text-[1.05rem] lg:text-lg";
 const NAV_ACTIVE_TEXT = "text-primary";
 const NAV_MUTED_TEXT = "text-muted-foreground group-hover:text-foreground";
+
+const getBasePath = (href: string) => href.split("#")[0] || "/";
 
 export function MainNav({ direction = "row", className, onNavigate }: MainNavProps) {
   const pathname = usePathname();
@@ -190,7 +192,8 @@ function renderSegment({
   pathname: string;
   onNavigate?: () => void;
 }) {
-  const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+  const basePath = getBasePath(item.href);
+  const isActive = basePath === "/" ? pathname === "/" : pathname.startsWith(basePath);
   return (
     <Link
       key={item.href}
@@ -225,7 +228,8 @@ function renderListLink({
   pathname: string;
   onNavigate?: () => void;
 }) {
-  const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+  const basePath = getBasePath(item.href);
+  const isActive = basePath === "/" ? pathname === "/" : pathname.startsWith(basePath);
   return (
     <Link
       key={item.href}

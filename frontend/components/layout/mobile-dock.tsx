@@ -6,8 +6,8 @@ import { Home, Layers, ShieldCheck, Phone } from "lucide-react";
 
 const DOCK_ITEMS = [
   { href: "/", label: "首页", icon: Home },
-  { href: "/executive-standards", label: "软件著作", icon: Layers },
-  { href: "/ip-services", label: "知识图谱", icon: ShieldCheck },
+  { href: "/copyright#copyright-workbench", label: "软件著作", icon: Layers },
+  { href: "/knowledge-graph", label: "知识图谱", icon: ShieldCheck },
   { href: "/about", label: "联系", icon: Phone },
 ];
 
@@ -54,7 +54,8 @@ export function MobileDock() {
       <nav className="pointer-events-auto mx-auto flex max-w-md items-center justify-between rounded-2xl border border-border/70 bg-background/95 px-3 py-2 shadow-xl shadow-black/10 backdrop-blur">
         {DOCK_ITEMS.map((item) => {
           const Icon = item.icon;
-          const active = pathname === item.href || pathname.startsWith(item.href);
+          const basePath = item.href.split("#")[0] || "/";
+          const active = pathname === basePath || pathname.startsWith(basePath);
           return (
             <button
               type="button"
